@@ -7,31 +7,28 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 )
-
-// a list of available Go versions from https://go.dev/dl
-// TODO(junk1tm): fill the list
-var availableVersions = map[string]struct{}{
-	"1.17":   {},
-	"1.18":   {},
-	"1.19":   {},
-	"1.19.1": {},
-	"1.19.2": {},
-	"1.19.3": {},
-}
 
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("goversion: ")
 
 	if err := run(); err != nil {
-		log.Println(err)
-		if errors.As(err, new(usageError)) {
+		var exitErr *exec.ExitError
+		switch {
+		case errors.As(err, &exitErr):
+			code := exitErr.ExitCode()
+			os.Exit(code)
+		case errors.As(err, new(usageError)):
+			log.Print(err)
 			usage()
 			os.Exit(2)
+		default:
+			log.Print(err)
+			os.Exit(1)
 		}
-		os.Exit(1)
 	}
 }
 

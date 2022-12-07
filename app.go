@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 )
 
 // app holds values used by all the commands.
@@ -21,7 +25,9 @@ type app struct {
 	version struct {
 		main    string
 		current string
+		local   map[string]struct{}
 	}
+	client *http.Client
 }
 
 // newApp initializes and returns a new app.
@@ -46,6 +52,13 @@ func newApp(ctx context.Context) (*app, error) {
 		return nil, err
 	}
 
+	app.version.local, err = app.localVersions()
+	if err != nil {
+		return nil, err
+	}
+
+	app.client = &http.Client{Timeout: time.Minute}
+
 	return &app, nil
 }
 
@@ -59,10 +72,6 @@ func (a *app) use(ctx context.Context, args []string) error {
 	version := args[0]
 	if version == "main" {
 		version = a.version.main
-	}
-
-	if _, ok := availableVersions[version]; !ok {
-		return usageError{fmt.Errorf("invalid version %q", version)}
 	}
 
 	if version == a.version.current {
@@ -79,21 +88,14 @@ func (a *app) use(ctx context.Context, args []string) error {
 		return nil
 	}
 
+	if _, ok := a.version.local[version]; !ok {
+		log.Printf("%s is not installed; looking for it remotely...", version)
+		if err := a.install(ctx, version); err != nil {
+			return err
+		}
+	}
+
 	binary := filepath.Join(a.path.gobin, "go"+version)
-	if notExist(binary) {
-		url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
-		if err := command(ctx, "go", "install", url); err != nil {
-			return err
-		}
-	}
-
-	sdk := filepath.Join(a.path.sdk, "go"+version)
-	if notExist(sdk) {
-		if err := command(ctx, binary, "download"); err != nil {
-			return err
-		}
-	}
-
 	if err := os.Remove(a.path.symlink); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
@@ -105,7 +107,30 @@ func (a *app) use(ctx context.Context, args []string) error {
 	return nil
 }
 
-// list prints a list of installed Go versions, highlighting the current one.
+// install downloads the specified Go version.
+func (a *app) install(ctx context.Context, version string) error {
+	versions, err := a.remoteVersions(ctx)
+	if err != nil {
+		return err
+	}
+	if _, ok := versions[version]; !ok {
+		return fmt.Errorf("malformed version %s", version)
+	}
+
+	url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
+	if err := command(ctx, "go", "install", url); err != nil {
+		return err
+	}
+
+	binary := filepath.Join(a.path.gobin, "go"+version)
+	if err := command(ctx, binary, "download"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// list prints the list of installed Go versions, highlighting the current one.
 func (a *app) list(_ context.Context, _ []string) error {
 	// TODO(junk1tm): support -all
 	// var all bool
@@ -115,11 +140,6 @@ func (a *app) list(_ context.Context, _ []string) error {
 	// if err := fset.Parse(args); err != nil {
 	// 	return err
 	// }
-
-	entries, err := os.ReadDir(a.path.gobin)
-	if err != nil {
-		return err
-	}
 
 	var sb strings.Builder
 	sb.WriteString("\n\n")
@@ -136,19 +156,8 @@ func (a *app) list(_ context.Context, _ []string) error {
 		a.version.main,
 	)
 
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		version := entry.Name()
-		version = strings.TrimPrefix(version, "go")
-		if _, ok := availableVersions[version]; !ok {
-			continue
-		}
-
+	for version := range a.version.local {
 		sdk := filepath.Join(a.path.sdk, "go"+version)
-
 		fmt.Fprintf(&sb, "%s %-7s (%s)\n",
 			ifThenElse(version == a.version.current, "*", " "),
 			version,
@@ -156,7 +165,7 @@ func (a *app) list(_ context.Context, _ []string) error {
 		)
 	}
 
-	log.Println(sb.String())
+	log.Print(sb.String())
 	return nil
 }
 
@@ -172,8 +181,8 @@ func (a *app) remove(_ context.Context, args []string) error {
 		version = a.version.main
 	}
 
-	if _, ok := availableVersions[version]; !ok {
-		return usageError{fmt.Errorf("invalid version %q", version)}
+	if _, ok := a.version.local[version]; !ok {
+		return usageError{fmt.Errorf("%s is not installed", version)}
 	}
 
 	if version == a.version.main {
@@ -245,6 +254,60 @@ func (a *app) mainVersion(ctx context.Context) (string, error) {
 	return parseGoVersion(string(out))
 }
 
+var versionRE = regexp.MustCompile(`^go1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)[1-9]+)?$`)
+
+// localVersions returns the set of installed Go versions.
+func (a *app) localVersions() (map[string]struct{}, error) {
+	entries, err := os.ReadDir(a.path.gobin)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]struct{})
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if name := entry.Name(); versionRE.MatchString(name) {
+			version := strings.TrimPrefix(name, "go")
+			m[version] = struct{}{}
+		}
+	}
+
+	return m, nil
+}
+
+// remoteVersions returns the set of Go versions available for install.
+func (a *app) remoteVersions(ctx context.Context) (map[string]struct{}, error) {
+	const url = "https://go.dev/dl/?mode=json&include=all"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var slice []struct {
+		Version string `json:"version"`
+		Stable  bool   `json:"stable"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&slice); err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]struct{}, len(slice))
+	for _, v := range slice {
+		m[v.Version] = struct{}{}
+	}
+
+	return m, nil
+}
+
 // parseGoVersion returns the semver part of a full Go version
 // (e.g. `go version go1.18 darwin/arm64` -> `1.18`).
 func parseGoVersion(s string) (string, error) {
@@ -266,14 +329,7 @@ func command(ctx context.Context, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Stdout = logWriter{}
 	cmd.Stderr = logWriter{}
-
-	if err := cmd.Run(); err != nil {
-		// var exitErr *exec.ExitError
-		// if errors.As(err, &exitErr) {}
-		return err
-	}
-
-	return nil
+	return cmd.Run()
 }
 
 type logWriter struct{}
