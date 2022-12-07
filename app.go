@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -156,7 +157,13 @@ func (a *app) list(_ context.Context, _ []string) error {
 		a.version.main,
 	)
 
-	for version := range a.version.local {
+	versions := make([]string, 0, len(a.version.local))
+	for v := range a.version.local {
+		versions = append(versions, v)
+	}
+	sort.Strings(versions)
+
+	for _, version := range versions {
 		sdk := filepath.Join(a.path.sdk, "go"+version)
 		fmt.Fprintf(&sb, "%s %-7s (%s)\n",
 			ifThenElse(version == a.version.current, "*", " "),
@@ -182,7 +189,7 @@ func (a *app) remove(_ context.Context, args []string) error {
 	}
 
 	if _, ok := a.version.local[version]; !ok {
-		return usageError{fmt.Errorf("%s is not installed", version)}
+		return fmt.Errorf("%s is not installed", version)
 	}
 
 	if version == a.version.main {
@@ -302,7 +309,8 @@ func (a *app) remoteVersions(ctx context.Context) (map[string]struct{}, error) {
 
 	m := make(map[string]struct{}, len(slice))
 	for _, v := range slice {
-		m[v.Version] = struct{}{}
+		version := strings.TrimPrefix(v.Version, "go")
+		m[version] = struct{}{}
 	}
 
 	return m, nil
