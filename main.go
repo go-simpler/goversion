@@ -5,30 +5,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"os/signal"
 )
 
 func main() {
-	log.SetFlags(0)
-	log.SetPrefix("goversion: ")
-
 	if err := run(); err != nil {
-		var exitErr *exec.ExitError
-		switch {
-		case errors.As(err, &exitErr):
-			code := exitErr.ExitCode()
-			os.Exit(code)
-		case errors.As(err, new(usageError)):
-			log.Print(err)
-			usage()
-			os.Exit(2)
-		default:
-			log.Print(err)
-			os.Exit(1)
+		if exitErr := (*exec.ExitError)(nil); errors.As(err, &exitErr) {
+			os.Exit(exitErr.ExitCode())
 		}
+		printf("Error: %v\n", err)
+		if errors.As(err, new(usageError)) {
+			printf(usage)
+			os.Exit(2)
+		}
+		os.Exit(1)
 	}
 }
 
@@ -50,20 +42,35 @@ func run() error {
 	switch cmd {
 	case "use":
 		return app.use(ctx, args)
-	case "list", "ls":
+	case "ls":
 		return app.list(ctx, args)
-	case "remove", "rm":
+	case "rm":
 		return app.remove(ctx, args)
-	case "-h", "-help":
-		usage()
+	case "help":
+		printf(usage)
 		return nil
 	default:
 		return usageError{fmt.Errorf("unknown command %q", cmd)}
 	}
 }
 
+const usage = `
+Usage: goversion <command> [command flags]
+
+Commands:
+
+	use <version>   switch the current Go version (will be installed if not already exists)
+
+	ls              print the list of installed Go versions
+	    -a (-all)   print available versions from go.dev as well
+
+	rm <version>    remove the specified Go version (both the binary and the SDK)
+
+	help            print this message and quit
+`
+
 type usageError struct{ error }
 
-func usage() {
-	fmt.Printf("usage: TODO\n")
+func printf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, format, args...)
 }

@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -77,7 +76,7 @@ func (a *app) use(ctx context.Context, args []string) error {
 	}
 
 	if version == a.version.current {
-		log.Printf("%s is already in use", version)
+		printf("%s is already in use\n", version)
 		return nil
 	}
 
@@ -86,12 +85,12 @@ func (a *app) use(ctx context.Context, args []string) error {
 		if err := os.Remove(a.path.symlink); err != nil {
 			return err
 		}
-		log.Printf("switched to %s", version)
+		printf("Switched to %s (main)\n", version)
 		return nil
 	}
 
 	if !a.installed(version) {
-		log.Printf("%s is not installed; looking for it on go.dev ...", version)
+		printf("%s is not installed. Looking for it on go.dev ...\n", version)
 		if err := a.install(ctx, version); err != nil {
 			return err
 		}
@@ -102,7 +101,7 @@ func (a *app) use(ctx context.Context, args []string) error {
 	// it's possible that SDK download was canceled during initial installation,
 	// so we need to ensure its presence even if $GOBIN/go<version> exists.
 	if !a.downloaded(version) {
-		log.Printf("%s SDK is not downloaded; starting download ...", version)
+		printf("%s SDK is missing. Starting download ...\n", version)
 		if err := command(ctx, binary, "download"); err != nil {
 			return err
 		}
@@ -115,7 +114,7 @@ func (a *app) use(ctx context.Context, args []string) error {
 		return err
 	}
 
-	log.Printf("switched to %s", version)
+	printf("Switched to %s\n", version)
 	return nil
 }
 
@@ -131,7 +130,7 @@ func (a *app) install(ctx context.Context, version string) error {
 		set[v] = struct{}{}
 	}
 	if _, ok := set[version]; !ok {
-		return fmt.Errorf("malformed version %s", version)
+		return fmt.Errorf("malformed version %q", version)
 	}
 
 	url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
@@ -180,9 +179,6 @@ func (a *app) list(ctx context.Context, args []string) error {
 		return usageError{err}
 	}
 
-	var sb strings.Builder
-	sb.WriteString("\n\n")
-
 	versions := append([]string{a.version.main}, a.version.installed...)
 	lastInstalledIdx := len(versions) - 1
 
@@ -216,18 +212,17 @@ func (a *app) list(ctx context.Context, args []string) error {
 			prefix = "*"
 		}
 
-		fmt.Fprintf(&sb, "%s %-10s", prefix, version)
+		printf("%s %-10s", prefix, version)
 		if extra != "" {
-			fmt.Fprintf(&sb, " (%s)", extra)
+			printf(" (%s)", extra)
 		}
-		fmt.Fprintf(&sb, "\n")
+		printf("\n")
 	}
 
-	log.Print(sb.String())
 	return nil
 }
 
-// remove uninstalls the specified Go version.
+// remove removes the specified Go version (both the binary and the SDK).
 // If this version is current, remove will switch to the main one first.
 func (a *app) remove(_ context.Context, args []string) error {
 	if len(args) == 0 {
@@ -252,7 +247,7 @@ func (a *app) remove(_ context.Context, args []string) error {
 		if err := os.Remove(a.path.symlink); err != nil {
 			return err
 		}
-		log.Printf("switched to %s (main)", a.version.main)
+		printf("Switched to %s (main)\n", a.version.main)
 	}
 
 	binary := filepath.Join(a.path.gobin, "go"+version)
@@ -265,7 +260,7 @@ func (a *app) remove(_ context.Context, args []string) error {
 		return err
 	}
 
-	log.Printf("removed %s", version)
+	printf("Removed %s\n", version)
 	return nil
 }
 
@@ -376,17 +371,10 @@ func parseGoVersion(s string) (string, error) {
 	return strings.TrimPrefix(parts[2], "go"), nil
 }
 
-// command is a wrapper for exec.Command that redirects stdout/stderr to log.
+// command is a wrapper for exec.Command that redirects stdout/stderr.
 func command(ctx context.Context, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Stdout = logWriter{}
-	cmd.Stderr = logWriter{}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
-}
-
-type logWriter struct{}
-
-func (w logWriter) Write(p []byte) (int, error) {
-	log.Print(string(p))
-	return len(p), nil
 }
