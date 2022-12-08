@@ -64,7 +64,7 @@ func newApp(ctx context.Context) (*app, error) {
 }
 
 // use switches the current Go version to the one specified.
-// If it's not installed, use will download it first.
+// If it's not installed, use will install it and download its SDK first.
 func (a *app) use(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		return usageError{errors.New("no version has been specified")}
@@ -90,13 +90,23 @@ func (a *app) use(ctx context.Context, args []string) error {
 	}
 
 	if _, ok := a.version.local[version]; !ok {
-		log.Printf("%s is not installed; looking for it remotely...", version)
+		log.Printf("%s is not installed; looking for it remotely ...", version)
 		if err := a.install(ctx, version); err != nil {
 			return err
 		}
 	}
 
 	binary := filepath.Join(a.path.gobin, "go"+version)
+
+	// it's possible that SDK download was canceled during initial installation,
+	// so we need to ensure its presence even if $GOBIN/go<version> exists.
+	if !a.downloaded(version) {
+		log.Printf("%s SDK is not downloaded", version)
+		if err := command(ctx, binary, "download"); err != nil {
+			return err
+		}
+	}
+
 	if err := os.Remove(a.path.symlink); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
@@ -108,7 +118,7 @@ func (a *app) use(ctx context.Context, args []string) error {
 	return nil
 }
 
-// install downloads the specified Go version.
+// install installs the specified Go version and downloads its SDK.
 func (a *app) install(ctx context.Context, version string) error {
 	versions, err := a.remoteVersions(ctx)
 	if err != nil {
@@ -129,6 +139,16 @@ func (a *app) install(ctx context.Context, version string) error {
 	}
 
 	return nil
+}
+
+// downloaded checks whether the SDK of the specified version has been downloaded successfully.
+func (a *app) downloaded(version string) bool {
+	// from https://github.com/golang/dl/blob/master/internal/version/version.go
+	// .unpacked-success is a sentinel zero-byte file to indicate that the Go
+	// version was downloaded and unpacked successfully.
+	name := filepath.Join(a.path.sdk, "go"+version, ".unpacked-success")
+	_, err := os.Stat(name)
+	return err == nil
 }
 
 // list prints the list of installed Go versions, highlighting the current one.
@@ -152,7 +172,7 @@ func (a *app) list(_ context.Context, _ []string) error {
 		return s2
 	}
 
-	fmt.Fprintf(&sb, "%s %-7s (main, installed)\n",
+	fmt.Fprintf(&sb, "%s %-12s (main)\n",
 		ifThenElse(a.version.main == a.version.current, "*", " "),
 		a.version.main,
 	)
@@ -164,11 +184,10 @@ func (a *app) list(_ context.Context, _ []string) error {
 	sort.Strings(versions)
 
 	for _, version := range versions {
-		sdk := filepath.Join(a.path.sdk, "go"+version)
-		fmt.Fprintf(&sb, "%s %-7s (%s)\n",
+		fmt.Fprintf(&sb, "%s %-12s%s\n",
 			ifThenElse(version == a.version.current, "*", " "),
 			version,
-			ifThenElse(notExist(sdk), "not installed", "installed"),
+			ifThenElse(a.downloaded(version), "", " (not downloaded)"),
 		)
 	}
 
@@ -188,12 +207,12 @@ func (a *app) remove(_ context.Context, args []string) error {
 		version = a.version.main
 	}
 
-	if _, ok := a.version.local[version]; !ok {
-		return fmt.Errorf("%s is not installed", version)
-	}
-
 	if version == a.version.main {
 		return fmt.Errorf("unable to remove %s (main)", version)
+	}
+
+	if _, ok := a.version.local[version]; !ok {
+		return fmt.Errorf("%s is not installed", version)
 	}
 
 	if version == a.version.current {
@@ -284,7 +303,7 @@ func (a *app) localVersions() (map[string]struct{}, error) {
 	return m, nil
 }
 
-// remoteVersions returns the set of Go versions available for install.
+// remoteVersions returns the set of Go versions available for installation.
 func (a *app) remoteVersions(ctx context.Context) (map[string]struct{}, error) {
 	const url = "https://go.dev/dl/?mode=json&include=all"
 
