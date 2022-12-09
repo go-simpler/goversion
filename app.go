@@ -125,11 +125,14 @@ func (a *app) install(ctx context.Context, version string) error {
 		return err
 	}
 
-	set := make(map[string]struct{}, len(versions))
+	exists := false
 	for _, v := range versions {
-		set[v] = struct{}{}
+		if v == version {
+			exists = true
+			break
+		}
 	}
-	if _, ok := set[version]; !ok {
+	if !exists {
 		return fmt.Errorf("malformed version %q", version)
 	}
 
@@ -148,12 +151,12 @@ func (a *app) install(ctx context.Context, version string) error {
 
 // installed checks whether the specified Go version has been installed.
 func (a *app) installed(version string) bool {
-	set := make(map[string]struct{}, len(a.version.installed))
 	for _, v := range a.version.installed {
-		set[v] = struct{}{}
+		if v == version {
+			return true
+		}
 	}
-	_, ok := set[version]
-	return ok
+	return false
 }
 
 // downloaded checks whether the SDK of the specified Go version has been downloaded.
@@ -179,32 +182,15 @@ func (a *app) list(ctx context.Context, args []string) error {
 		return usageError{err}
 	}
 
-	versions := append([]string{a.version.main}, a.version.installed...)
-	lastInstalledIdx := len(versions) - 1
-
-	if printAll {
-		all, err := a.allVersions(ctx)
-		if err != nil {
-			return err
-		}
-		for _, version := range all {
-			// TODO(junk1tm): convert to map once
-			if a.installed(version) || version == a.version.main {
-				continue
-			}
-			versions = append(versions, version)
-		}
-	}
-
-	for i, version := range versions {
+	printVersion := func(version string, installed bool) {
 		var extra string
 		switch {
 		case version == a.version.main:
-			extra = "main"
-		case i > lastInstalledIdx:
-			extra = "not installed"
+			extra = " (main)"
+		case !installed:
+			extra = " (not installed)"
 		case !a.downloaded(version):
-			extra = "missing SDK"
+			extra = " (missing SDK)"
 		}
 
 		prefix := " "
@@ -212,11 +198,28 @@ func (a *app) list(ctx context.Context, args []string) error {
 			prefix = "*"
 		}
 
-		printf("%s %-10s", prefix, version)
-		if extra != "" {
-			printf(" (%s)", extra)
+		printf("%s %-10s%s\n", prefix, version, extra)
+	}
+
+	printVersion(a.version.main, true)
+
+	for _, version := range a.version.installed {
+		printVersion(version, true)
+	}
+
+	if printAll {
+		all, err := a.allVersions(ctx)
+		if err != nil {
+			return err
 		}
+
 		printf("\n")
+		for _, version := range all {
+			if version == a.version.main || a.installed(version) {
+				continue
+			}
+			printVersion(version, false)
+		}
 	}
 
 	return nil
