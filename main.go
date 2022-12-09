@@ -4,28 +4,61 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
+)
+
+// injected at build time.
+var (
+	Version = "dev"
+	Target  = "unknown"
 )
 
 func main() {
 	if err := run(); err != nil {
-		if exitErr := (*exec.ExitError)(nil); errors.As(err, &exitErr) {
-			os.Exit(exitErr.ExitCode())
-		}
-		printf("Error: %v\n", err)
-		if errors.As(err, new(usageError)) {
+		var exitErr *exec.ExitError
+
+		switch {
+		case errors.Is(err, flag.ErrHelp):
 			printf(usage)
+			os.Exit(0)
+		case errors.As(err, new(usageError)):
+			printf("Error: %v\n\n%s", err, usage)
 			os.Exit(2)
+		case errors.As(err, &exitErr):
+			code := exitErr.ExitCode()
+			os.Exit(code)
+		default:
+			printf("Error: %v\n", err)
+			os.Exit(1)
 		}
-		os.Exit(1)
 	}
 }
 
 func run() error {
-	if len(os.Args) < 2 {
+	fset := flag.NewFlagSet("goversion", flag.ContinueOnError)
+	fset.SetOutput(io.Discard)
+
+	var printVersion bool
+	fset.BoolVar(&printVersion, "v", false, "shorthand for -version")
+	fset.BoolVar(&printVersion, "version", false, "print the version of goversion itself and quit")
+
+	if err := fset.Parse(os.Args[1:]); err != nil {
+		return usageError{err}
+	}
+
+	if printVersion {
+		printf("goversion %s %s (built by %s)\n", Version, Target, runtime.Version())
+		return nil
+	}
+
+	args := fset.Args()
+	if len(args) == 0 {
 		return usageError{errors.New("no command has been specified")}
 	}
 
@@ -37,25 +70,23 @@ func run() error {
 		return err
 	}
 
-	cmd, args := os.Args[1], os.Args[2:]
-
-	switch cmd {
+	switch cmd := args[0]; cmd {
 	case "use":
-		return app.use(ctx, args)
+		return app.use(ctx, args[1:])
 	case "ls":
-		return app.list(ctx, args)
+		return app.list(ctx, args[1:])
 	case "rm":
-		return app.remove(ctx, args)
-	case "help":
-		printf(usage)
-		return nil
+		return app.remove(ctx, args[1:])
 	default:
 		return usageError{fmt.Errorf("unknown command %q", cmd)}
 	}
 }
 
-const usage = `
-Usage: goversion <command> [command flags]
+func printf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, format, args...)
+}
+
+const usage = `Usage: goversion [flags] <command> [command flags]
 
 Commands:
 
@@ -67,11 +98,13 @@ Commands:
 
 	rm <version>         remove the specified Go version (both the binary and the SDK)
 
-	help                 print this message and quit
+Flags:
+
+	-h (-help)           print this message and quit
+	-v (-version)        print the version of goversion itself and quit
 `
 
-type usageError struct{ error }
+type usageError struct{ err error }
 
-func printf(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, format, args...)
-}
+func (e usageError) Error() string { return e.err.Error() }
+func (e usageError) Unwrap() error { return e.err }
