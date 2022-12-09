@@ -176,13 +176,21 @@ func (a *app) list(ctx context.Context, args []string) error {
 	fset.SetOutput(io.Discard)
 
 	var printAll bool
-	fset.BoolVar(&printAll, "all", false, "print all versions")
 	fset.BoolVar(&printAll, "a", false, "shorthand for -all")
+	fset.BoolVar(&printAll, "all", false, "print available versions from go.dev as well")
+
+	var only string
+	fset.StringVar(&only, "only", "", "print only versions starting with this prefix")
+
 	if err := fset.Parse(args); err != nil {
 		return usageError{err}
 	}
 
 	printVersion := func(version string, installed bool) {
+		if !strings.HasPrefix(version, only) {
+			return
+		}
+
 		var extra string
 		switch {
 		case version == a.version.main:

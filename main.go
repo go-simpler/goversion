@@ -59,14 +59,15 @@ Usage: goversion <command> [command flags]
 
 Commands:
 
-	use <version>   switch the current Go version (will be installed if not already exists)
+	use <version>        switch the current Go version (will be installed if not already exists)
 
-	ls              print the list of installed Go versions
-	    -a (-all)   print available versions from go.dev as well
+	ls                   print the list of installed Go versions
+	    -a (-all)        print available versions from go.dev as well
+	    -only=<prefix>   print only versions starting with this prefix
 
-	rm <version>    remove the specified Go version (both the binary and the SDK)
+	rm <version>         remove the specified Go version (both the binary and the SDK)
 
-	help            print this message and quit
+	help                 print this message and quit
 `
 
 type usageError struct{ error }
