@@ -337,6 +337,12 @@ func (a *app) installedVersions() ([]string, error) {
 		}
 	}
 
+	// TODO(junk1tm): fix the order of rc/beta versions
+	// reverse to match the order of the go.dev version list (from newest to oldest).
+	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
+		versions[i], versions[j] = versions[j], versions[i]
+	}
+
 	return versions, nil
 }
 
