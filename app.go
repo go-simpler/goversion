@@ -38,10 +38,15 @@ func newApp(ctx context.Context) (*app, error) {
 		return nil, err
 	}
 
+	gobin, ok := os.LookupEnv("GOBIN")
+	if !ok {
+		gobin = filepath.Join(home, "go", "bin")
+	}
+
 	var app app
 	app.path.sdk = filepath.Join(home, "sdk")
-	app.path.gobin = filepath.Join(home, "go", "bin")
-	app.path.symlink = filepath.Join(app.path.gobin, "go")
+	app.path.gobin = gobin
+	app.path.symlink = filepath.Join(gobin, "go")
 
 	app.version.current, err = app.currentVersion(ctx)
 	if err != nil {
