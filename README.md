@@ -10,7 +10,7 @@ Easily switch between multiple Go versions
 ## 📌 About
 
 Go already supports [installing multiple versions][1] simultaneously as separate binaries,
-e.g. `go` (the main version) and `go1.19` (an additional version).
+e.g. `go` (the main version) and `go1.18` (an additional version).
 It works just fine when interacting with `go <command>` directly,
 but could be inconvenient when the command is wrapped with something like `Makefile` or shell scripts.
 The `goversion` tool attempts to solve this by symlinking `go1.X.Y` to `go`,
@@ -18,15 +18,15 @@ so any additional Go version could be used as if it was the main one.
 
 ```shell
 > go version
-go version go1.18 darwin/arm64
+go version go1.19 darwin/arm64
 
-> goversion use 1.19
-1.19 is not installed. Looking for it on go.dev ...
+> goversion use 1.18
+1.18 is not installed. Looking for it on go.dev ...
 # Downloading ...
-Switched to 1.19
+Switched to 1.18
 
 > go version
-go version go1.19 darwin/arm64
+go version go1.18 darwin/arm64
 ```
 
 ## 🚀 Features
@@ -59,3 +59,71 @@ Download a prebuilt binary from the [Releases][2] page.
 
 [1]: https://go.dev/doc/manage-install
 [2]: https://github.com/junk1tm/goversion/releases
+
+## 📋 Commands
+
+### Use
+
+Switches the current Go version (will be installed if not already exists).
+
+```shell
+> goversion use 1.18
+Switched to 1.18
+```
+
+As a special case, the `main` string can be provided to quickly switch to the main version.
+
+```shell
+> goversion use main
+Switched to 1.19 (main)
+```
+
+### List
+
+Prints the list of installed Go versions.
+The main version is always printed first.
+The current version is marked with the `*` symbol.
+
+```shell
+> goversion ls
+  1.19       (main)
+* 1.18      
+  1.17      
+```
+
+The `-a (-all)` flag can be provided to print available versions from `go.dev` as well.
+
+```shell
+> goversion ls -a
+  1.19       (main)
+* 1.18      
+  1.17      
+
+  1.19.4     (not installed)
+  1.19.3     (not installed)
+# ...
+  1.2.2      (not installed)
+  1          (not installed)
+```
+
+The full list is quite long, to limit it the `-only=<prefix>` flag can be used.
+
+```shell
+> goversion ls -a -only=1.18
+* 1.18      
+
+  1.18.9     (not installed)
+  1.18.8     (not installed)
+# ...
+  1.18beta2  (not installed)
+  1.18beta1  (not installed)
+```
+
+### Remove
+
+Removes the specified Go version (both the binary and the SDK).
+
+```shell
+> goversion rm 1.19
+Removed 1.19
+```
