@@ -124,6 +124,6 @@ The full list is quite long, to limit it the `-only=<prefix>` flag can be used.
 Removes the specified Go version (both the binary and the SDK).
 
 ```shell
-> goversion rm 1.19
-Removed 1.19
+> goversion rm 1.18
+Removed 1.18
 ```
