@@ -323,6 +323,7 @@ func (a *app) mainVersion(ctx context.Context) (string, error) {
 	return parseGoVersion(string(out))
 }
 
+//nolint:gocritic // regexpSimplify: [0-9] reads better here than \d
 var versionRE = regexp.MustCompile(`^go1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)[1-9]+)?$`)
 
 // installedVersions returns the list of installed Go versions.

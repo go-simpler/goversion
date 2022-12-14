@@ -1,0 +1,31 @@
+builds:
+  - goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.Version={{.Version}} -X main.Target={{.Env.GOOS}}/{{.Env.GOARCH}}
+
+archives:
+  - replacements:
+      darwin: macOS
+    format_overrides:
+      - goos: windows
+        format: zip
+
+brews:
+  - tap:
+      owner: junk1tm
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/junk1tm/goversion"
+    description: "Easily switch between multiple Go versions"
+    license: "MIT"
