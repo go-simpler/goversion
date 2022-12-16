@@ -13,11 +13,7 @@ import (
 	"runtime"
 )
 
-// injected at build time.
-var (
-	Version = "dev"
-	Target  = "unknown"
-)
+var Version = "dev" // injected at build time.
 
 func main() {
 	if err := run(); err != nil {
@@ -53,7 +49,7 @@ func run() error {
 	}
 
 	if printVersion {
-		printf("goversion %s %s (built by %s)\n", Version, Target, runtime.Version())
+		printf("goversion %s %s/%s (built by %s)\n", Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		return nil
 	}
 
