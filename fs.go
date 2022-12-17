@@ -3,6 +3,7 @@ package main
 import (
 	"io/fs"
 	"os"
+	"runtime"
 )
 
 // fsx is an extended fs.FS that supports removing files and creating symlinks.
@@ -13,10 +14,45 @@ type fsx interface {
 	Symlink(oldname, newname string) error
 }
 
-type osFS struct{ fs.FS }
+// dirFSx is an extended version of os.dirFS.
+type dirFSx struct {
+	fs.FS
+	dir string
+}
 
-func dirFS(dir string) fsx { return osFS{os.DirFS(dir)} }
+func dirFS(dir string) fsx { return dirFSx{os.DirFS(dir), dir} }
 
-func (osFS) Remove(name string) error              { return os.Remove(name) }
-func (osFS) RemoveAll(path string) error           { return os.RemoveAll(path) }
-func (osFS) Symlink(oldname, newname string) error { return os.Symlink(oldname, newname) }
+func (dfs dirFSx) Remove(name string) error {
+	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
+		return &os.PathError{Op: "remove", Path: name, Err: os.ErrInvalid}
+	}
+	return os.Remove(dfs.dir + "/" + name)
+}
+
+func (dfs dirFSx) RemoveAll(path string) error {
+	if !fs.ValidPath(path) || runtime.GOOS == "windows" && containsAny(path, `\:`) {
+		return &os.PathError{Op: "removeall", Path: path, Err: os.ErrInvalid}
+	}
+	return os.RemoveAll(dfs.dir + "/" + path)
+}
+
+func (dfs dirFSx) Symlink(oldname, newname string) error {
+	if !fs.ValidPath(oldname) || runtime.GOOS == "windows" && containsAny(oldname, `\:`) {
+		return &os.PathError{Op: "symlink", Path: oldname, Err: os.ErrInvalid}
+	}
+	if !fs.ValidPath(newname) || runtime.GOOS == "windows" && containsAny(newname, `\:`) {
+		return &os.PathError{Op: "symlink", Path: newname, Err: os.ErrInvalid}
+	}
+	return os.Symlink(dfs.dir+"/"+oldname, dfs.dir+"/"+newname)
+}
+
+func containsAny(s, chars string) bool {
+	for i := 0; i < len(s); i++ {
+		for j := 0; j < len(chars); j++ {
+			if s[i] == chars[j] {
+				return true
+			}
+		}
+	}
+	return false
+}
