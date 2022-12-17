@@ -59,17 +59,24 @@ func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	initial := false
 	if !contains(installed, version) {
+		initial = true
 		printf("%s is not installed. Looking for it on go.dev ...\n", version)
-		if err := install(ctx, version); err != nil {
+		url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
+		if err := command(ctx, "go", "install", url); err != nil {
 			return err
 		}
 	}
 
 	// it's possible that SDK download was canceled during initial installation,
-	// so we need to ensure its presence even if $GOBIN/go<version> exists.
+	// so we need to ensure its presence even if the go<version> binary exists.
 	if !downloaded(version, sdkFS) {
-		printf("%s SDK is missing. Starting download ...\n", version)
+		if !initial {
+			// this message doesn't make sense during initial installation.
+			printf("%s SDK is missing. Starting download ...\n", version)
+		}
 		if err := command(ctx, "go"+version, "download"); err != nil {
 			return err
 		}
@@ -84,29 +91,6 @@ func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 
 	printf("Switched to %s\n", version)
 	return nil
-}
-
-// install installs the specified Go version and downloads its SDK.
-func install(ctx context.Context, version string) error {
-	url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
-	if err := command(ctx, "go", "install", url); err != nil {
-		return err
-	}
-
-	if err := command(ctx, "go"+version, "download"); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// downloaded checks whether the SDK of the specified Go version has been downloaded.
-func downloaded(version string, sdkFS fs.FS) bool {
-	// from https://github.com/golang/dl/blob/master/internal/version/version.go
-	// .unpacked-success is a sentinel zero-byte file to indicate that the Go
-	// version was downloaded and unpacked successfully.
-	_, err := fs.Stat(sdkFS, "go"+version+"/.unpacked-success")
-	return err == nil
 }
 
 // list prints the list of installed Go versions, highlighting the current one.
@@ -233,6 +217,15 @@ func remove(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 
 	printf("Removed %s\n", version)
 	return nil
+}
+
+// downloaded checks whether the SDK of the specified Go version has been downloaded.
+func downloaded(version string, sdkFS fs.FS) bool {
+	// from https://github.com/golang/dl/blob/master/internal/version/version.go
+	// .unpacked-success is a sentinel zero-byte file to indicate that the Go
+	// version was downloaded and unpacked successfully.
+	_, err := fs.Stat(sdkFS, "go"+version+"/.unpacked-success")
+	return err == nil
 }
 
 // getVersions returns the main and current Go versions.
