@@ -17,6 +17,9 @@ import (
 	"time"
 )
 
+//nolint:gocritic // regexpSimplify: [0-9] reads better here than \d
+var versionRE = regexp.MustCompile(`^1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)[1-9]+)?$`)
+
 // use switches the current Go version to the one specified.
 // If it's not installed, use will install it and download its SDK first.
 func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
@@ -32,6 +35,10 @@ func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 	version := args[0]
 	if version == "main" {
 		version = main
+	}
+
+	if !versionRE.MatchString(version) {
+		return fmt.Errorf("malformed version %q", version)
 	}
 
 	if version == current {
@@ -63,7 +70,7 @@ func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 	// so we need to ensure its presence even if $GOBIN/go<version> exists.
 	if !downloaded(version, sdkFS) {
 		printf("%s SDK is missing. Starting download ...\n", version)
-		if err := command(ctx, "go/bin/go"+version, "download"); err != nil {
+		if err := command(ctx, "go"+version, "download"); err != nil {
 			return err
 		}
 	}
@@ -81,14 +88,6 @@ func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 
 // install installs the specified Go version and downloads its SDK.
 func install(ctx context.Context, version string) error {
-	all, err := allVersions(ctx)
-	if err != nil {
-		return err
-	}
-	if !contains(all, version) {
-		return fmt.Errorf("malformed version %q", version)
-	}
-
 	url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
 	if err := command(ctx, "go", "install", url); err != nil {
 		return err
@@ -201,16 +200,12 @@ func remove(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 		version = main
 	}
 
-	if version == main {
-		return fmt.Errorf("unable to remove %s (main)", version)
+	if !versionRE.MatchString(version) {
+		return fmt.Errorf("malformed version %q", version)
 	}
 
-	installed, err := installedVersions(gobinFS)
-	if err != nil {
-		return err
-	}
-	if !contains(installed, version) {
-		return fmt.Errorf("%s is not installed", version)
+	if version == main {
+		return fmt.Errorf("unable to remove %s (main)", version)
 	}
 
 	if version == current {
@@ -219,6 +214,14 @@ func remove(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 			return err
 		}
 		printf("Switched to %s (main)\n", main)
+	}
+
+	installed, err := installedVersions(gobinFS)
+	if err != nil {
+		return err
+	}
+	if !contains(installed, version) {
+		return fmt.Errorf("%s is not installed", version)
 	}
 
 	if err := gobinFS.Remove("go" + version); err != nil {
@@ -284,9 +287,6 @@ func getVersions(ctx context.Context, gobinFS fs.FS) (main, current string, err 
 	return main, current, nil
 }
 
-//nolint:gocritic // regexpSimplify: [0-9] reads better here than \d
-var versionRE = regexp.MustCompile(`^go1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)[1-9]+)?$`)
-
 // installedVersions returns the list of installed Go versions.
 func installedVersions(gobinFS fs.FS) ([]string, error) {
 	entries, err := fs.ReadDir(gobinFS, ".")
@@ -299,8 +299,9 @@ func installedVersions(gobinFS fs.FS) ([]string, error) {
 		if entry.IsDir() {
 			continue
 		}
-		if name := entry.Name(); versionRE.MatchString(name) {
-			versions = append(versions, strings.TrimPrefix(name, "go"))
+		version := strings.TrimPrefix(entry.Name(), "go")
+		if versionRE.MatchString(version) {
+			versions = append(versions, version)
 		}
 	}
 
