@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 )
 
@@ -61,18 +62,27 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	app, err := newApp(ctx)
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
 
+	gobin, ok := os.LookupEnv("GOBIN")
+	if !ok {
+		gobin = filepath.Join(home, "go", "bin")
+		os.Setenv("GOBIN", gobin)
+	}
+
+	// TODO(junk1tm): make sure it works on Windows (see https://github.com/golang/go/issues/44279).
+	gobinFS, sdkFS := dirFS(gobin), dirFS(filepath.Join(home, "sdk"))
+
 	switch cmd := args[0]; cmd {
 	case "use":
-		return app.use(ctx, args[1:])
+		return use(ctx, gobinFS, sdkFS, args[1:])
 	case "ls":
-		return app.list(ctx, args[1:])
+		return list(ctx, gobinFS, sdkFS, args[1:])
 	case "rm":
-		return app.remove(ctx, args[1:])
+		return remove(ctx, gobinFS, sdkFS, args[1:])
 	default:
 		return usageError{fmt.Errorf("unknown command %q", cmd)}
 	}
