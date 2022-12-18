@@ -37,7 +37,7 @@ go version go1.18 darwin/arm64
 
 ## ✏️ Pre-requirements
 
-`$GOBIN` (usually `$HOME/go/bin`) must be in your `$PATH` and it must take precedence over the location of the main Go binary (e.g. `/opt/homebrew/bin`).
+`$GOBIN` (usually `$HOME/go/bin`) must be in your `$PATH` and it must take precedence over the location of the main Go binary (e.g. `/usr/local/go/bin` or `/opt/homebrew/bin`).
 
 ## 📦 Install
 
