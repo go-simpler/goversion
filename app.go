@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -110,16 +111,23 @@ func list(ctx context.Context, args []string, gobin, sdk fsx) error {
 		return err
 	}
 
-	printVersion := func(version string, installed bool) {
+	versions := local.list
+	if printAll {
+		if versions, err = remoteVersions(ctx); err != nil {
+			return err
+		}
+	}
+
+	for _, version := range versions {
 		if !strings.HasPrefix(version, only) {
-			return
+			continue
 		}
 
 		var extra string
 		switch {
 		case version == local.main:
 			extra = " (main)"
-		case !installed:
+		case !local.contains(version):
 			extra = " (not installed)"
 		case !downloaded(version, sdk):
 			extra = " (missing SDK)"
@@ -131,25 +139,6 @@ func list(ctx context.Context, args []string, gobin, sdk fsx) error {
 		}
 
 		printf("%s %-10s%s\n", prefix, version, extra)
-	}
-
-	for _, version := range local.list {
-		printVersion(version, true)
-	}
-
-	if printAll {
-		remote, err := remoteVersions(ctx)
-		if err != nil {
-			return err
-		}
-
-		printf("\n")
-		for _, version := range remote {
-			if local.contains(version) {
-				continue
-			}
-			printVersion(version, false)
-		}
 	}
 
 	return nil
@@ -264,7 +253,7 @@ func localVersions(ctx context.Context, gobin fsx) (*local, error) {
 		return nil, err
 	}
 
-	var list []string
+	list := []string{main}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -274,13 +263,10 @@ func localVersions(ctx context.Context, gobin fsx) (*local, error) {
 			list = append(list, version)
 		}
 	}
-	list = append(list, main)
 
-	// TODO(junk1tm): fix the order of rc/beta versions
-	// reverse to match the order of the go.dev version list (from newest to oldest).
-	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
-		list[i], list[j] = list[j], list[i]
-	}
+	sort.Slice(list, func(i, j int) bool {
+		return versionLess(list[i], list[j])
+	})
 
 	return &local{
 		main:    main,

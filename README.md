@@ -57,9 +57,6 @@ brew install junk1tm/tap/goversion
 
 Download a prebuilt binary from the [Releases][2] page.
 
-[1]: https://go.dev/doc/manage-install
-[2]: https://github.com/junk1tm/goversion/releases
-
 ## 📋 Commands
 
 ### Use
@@ -81,7 +78,6 @@ Switched to 1.19 (main)
 ### List
 
 Prints the list of installed Go versions.
-The main version is always printed first.
 The current version is marked with the `*` symbol.
 
 ```shell
@@ -95,12 +91,10 @@ The `-a (-all)` flag can be provided to print available versions from `go.dev` a
 
 ```shell
 > goversion ls -a
-  1.19       (main)
-* 1.18      
-  1.17      
-
   1.19.4     (not installed)
   1.19.3     (not installed)
+# ...
+  1.19       (main)
 # ...
   1.2.2      (not installed)
   1          (not installed)
@@ -110,10 +104,10 @@ The full list is quite long, to limit it the `-only=<prefix>` flag can be used.
 
 ```shell
 > goversion ls -a -only=1.18
-* 1.18      
-
   1.18.9     (not installed)
   1.18.8     (not installed)
+# ...
+* 1.18      
 # ...
   1.18beta2  (not installed)
   1.18beta1  (not installed)
@@ -127,3 +121,6 @@ Removes the specified Go version (both the binary and the SDK).
 > goversion rm 1.18
 Removed 1.18
 ```
+
+[1]: https://go.dev/doc/manage-install
+[2]: https://github.com/junk1tm/goversion/releases
