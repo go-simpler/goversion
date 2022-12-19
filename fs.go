@@ -6,15 +6,16 @@ import (
 	"runtime"
 )
 
-// fsx is an extended fs.FS that supports removing files and creating symlinks.
+// fsx is an extended fs.FS that supports removing files and interacting with symlinks.
 type fsx interface {
 	fs.FS
 	Remove(name string) error
 	RemoveAll(name string) error
 	Symlink(oldname, newname string) error
+	Readlink(name string) (string, error)
 }
 
-// dirFSx is an extended version of os.dirFS.
+// dirFSx is an extended version of os.dirFS that implements fsx.
 type dirFSx struct {
 	fs.FS
 	dir string
@@ -44,6 +45,13 @@ func (dfs dirFSx) Symlink(oldname, newname string) error {
 		return &os.PathError{Op: "symlink", Path: newname, Err: os.ErrInvalid}
 	}
 	return os.Symlink(dfs.dir+"/"+oldname, dfs.dir+"/"+newname)
+}
+
+func (dfs dirFSx) Readlink(name string) (string, error) {
+	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
+		return "", &os.PathError{Op: "readlink", Path: name, Err: os.ErrInvalid}
+	}
+	return os.Readlink(dfs.dir + "/" + name)
 }
 
 func containsAny(s, chars string) bool {

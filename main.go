@@ -78,11 +78,11 @@ func run() error {
 
 	switch cmd := args[0]; cmd {
 	case "use":
-		return use(ctx, gobinFS, sdkFS, args[1:])
+		return use(ctx, args[1:], gobinFS, sdkFS)
 	case "ls":
-		return list(ctx, gobinFS, sdkFS, args[1:])
+		return list(ctx, args[1:], gobinFS, sdkFS)
 	case "rm":
-		return remove(ctx, gobinFS, sdkFS, args[1:])
+		return remove(ctx, args[1:], gobinFS, sdkFS)
 	default:
 		return usageError{fmt.Errorf("unknown command %q", cmd)}
 	}

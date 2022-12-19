@@ -22,46 +22,40 @@ var versionRE = regexp.MustCompile(`^1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)
 
 // use switches the current Go version to the one specified.
 // If it's not installed, use will install it and download its SDK first.
-func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
+func use(ctx context.Context, args []string, gobin, sdk fsx) error {
 	if len(args) == 0 {
 		return usageError{errors.New("no version has been specified")}
 	}
 
-	main, current, err := getVersions(ctx, gobinFS)
+	local, err := localVersions(ctx, gobin)
 	if err != nil {
 		return err
 	}
 
 	version := args[0]
 	if version == "main" {
-		version = main
+		version = local.main
 	}
 
 	if !versionRE.MatchString(version) {
 		return fmt.Errorf("malformed version %q", version)
 	}
 
-	if version == current {
+	switch version {
+	case local.current:
 		printf("%s is already in use\n", version)
 		return nil
-	}
-
-	if version == main {
+	case local.main:
 		// for switching to the main version simply removing the symlink is enough.
-		if err := gobinFS.Remove("go"); err != nil {
+		if err := gobin.Remove("go"); err != nil {
 			return err
 		}
 		printf("Switched to %s (main)\n", version)
 		return nil
 	}
 
-	installed, err := installedVersions(gobinFS)
-	if err != nil {
-		return err
-	}
-
 	initial := false
-	if !contains(installed, version) {
+	if !local.contains(version) {
 		initial = true
 		printf("%s is not installed. Looking for it on go.dev ...\n", version)
 		url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
@@ -72,7 +66,7 @@ func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 
 	// it's possible that SDK download was canceled during initial installation,
 	// so we need to ensure its presence even if the go<version> binary exists.
-	if !downloaded(version, sdkFS) {
+	if !downloaded(version, sdk) {
 		if !initial {
 			// this message doesn't make sense during initial installation.
 			printf("%s SDK is missing. Starting download ...\n", version)
@@ -82,10 +76,11 @@ func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 		}
 	}
 
-	if err := gobinFS.Remove("go"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	// it's ok for the symlink to be missing if the previous version was the main one.
+	if err := gobin.Remove("go"); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	if err := gobinFS.Symlink("go"+version, "go"); err != nil {
+	if err := gobin.Symlink("go"+version, "go"); err != nil {
 		return err
 	}
 
@@ -95,7 +90,7 @@ func use(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 
 // list prints the list of installed Go versions, highlighting the current one.
 // If the -all flag is provided, list prints available versions from go.dev as well.
-func list(ctx context.Context, gobinFS, sdkFS fs.FS, args []string) error {
+func list(ctx context.Context, args []string, gobin, sdk fsx) error {
 	fset := flag.NewFlagSet("list", flag.ContinueOnError)
 	fset.SetOutput(io.Discard)
 
@@ -110,12 +105,7 @@ func list(ctx context.Context, gobinFS, sdkFS fs.FS, args []string) error {
 		return usageError{err}
 	}
 
-	main, current, err := getVersions(ctx, gobinFS)
-	if err != nil {
-		return err
-	}
-
-	installed, err := installedVersions(gobinFS)
+	local, err := localVersions(ctx, gobin)
 	if err != nil {
 		return err
 	}
@@ -127,37 +117,35 @@ func list(ctx context.Context, gobinFS, sdkFS fs.FS, args []string) error {
 
 		var extra string
 		switch {
-		case version == main:
+		case version == local.main:
 			extra = " (main)"
 		case !installed:
 			extra = " (not installed)"
-		case !downloaded(version, sdkFS):
+		case !downloaded(version, sdk):
 			extra = " (missing SDK)"
 		}
 
 		prefix := " "
-		if version == current {
+		if version == local.current {
 			prefix = "*"
 		}
 
 		printf("%s %-10s%s\n", prefix, version, extra)
 	}
 
-	printVersion(main, true)
-
-	for _, version := range installed {
+	for _, version := range local.list {
 		printVersion(version, true)
 	}
 
 	if printAll {
-		all, err := allVersions(ctx)
+		remote, err := remoteVersions(ctx)
 		if err != nil {
 			return err
 		}
 
 		printf("\n")
-		for _, version := range all {
-			if version == main || contains(installed, version) {
+		for _, version := range remote {
+			if local.contains(version) {
 				continue
 			}
 			printVersion(version, false)
@@ -169,49 +157,44 @@ func list(ctx context.Context, gobinFS, sdkFS fs.FS, args []string) error {
 
 // remove removes the specified Go version (both the binary and the SDK).
 // If this version is current, remove will switch to the main one first.
-func remove(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
+func remove(ctx context.Context, args []string, gobin, sdk fsx) error {
 	if len(args) == 0 {
 		return usageError{errors.New("no version has been specified")}
 	}
 
-	main, current, err := getVersions(ctx, gobinFS)
+	local, err := localVersions(ctx, gobin)
 	if err != nil {
 		return err
 	}
 
 	version := args[0]
 	if version == "main" {
-		version = main
+		version = local.main
 	}
 
 	if !versionRE.MatchString(version) {
 		return fmt.Errorf("malformed version %q", version)
 	}
 
-	if version == main {
-		return fmt.Errorf("unable to remove %s (main)", version)
-	}
-
-	if version == current {
-		// switch to the main version first.
-		if err := gobinFS.Remove("go"); err != nil {
-			return err
-		}
-		printf("Switched to %s (main)\n", main)
-	}
-
-	installed, err := installedVersions(gobinFS)
-	if err != nil {
-		return err
-	}
-	if !contains(installed, version) {
+	if !local.contains(version) {
 		return fmt.Errorf("%s is not installed", version)
 	}
 
-	if err := gobinFS.Remove("go" + version); err != nil {
+	switch version {
+	case local.main:
+		return fmt.Errorf("unable to remove %s (main)", version)
+	case local.current:
+		// switch to the main version first.
+		if err := gobin.Remove("go"); err != nil {
+			return err
+		}
+		printf("Switched to %s (main)\n", local.main)
+	}
+
+	if err := gobin.Remove("go" + version); err != nil {
 		return err
 	}
-	if err := sdkFS.RemoveAll("go" + version); err != nil {
+	if err := sdk.RemoveAll("go" + version); err != nil {
 		return err
 	}
 
@@ -220,95 +203,94 @@ func remove(ctx context.Context, gobinFS, sdkFS fsx, args []string) error {
 }
 
 // downloaded checks whether the SDK of the specified Go version has been downloaded.
-func downloaded(version string, sdkFS fs.FS) bool {
+func downloaded(version string, sdk fs.FS) bool {
 	// from https://github.com/golang/dl/blob/master/internal/version/version.go
 	// .unpacked-success is a sentinel zero-byte file to indicate that the Go
 	// version was downloaded and unpacked successfully.
-	_, err := fs.Stat(sdkFS, "go"+version+"/.unpacked-success")
+	_, err := fs.Stat(sdk, "go"+version+"/.unpacked-success")
 	return err == nil
 }
 
-// getVersions returns the main and current Go versions.
-// The main version is the one that was used to install goversion itself.
-func getVersions(ctx context.Context, gobinFS fs.FS) (main, current string, err error) {
-	getVersion := func(ctx context.Context) (string, error) {
-		out, err := exec.CommandContext(ctx, "go", "version").Output()
-		if err != nil {
-			return "", err
-		}
-		// the format is `go version go1.18 darwin/arm64`, we want the semver part.
-		parts := strings.Split(string(out), " ")
-		if len(parts) != 4 {
-			return "", fmt.Errorf("unexpected format %q", out)
-		}
-		return strings.TrimPrefix(parts[2], "go"), nil
-	}
-
-	current, err = getVersion(ctx)
-	if err != nil {
-		return "", "", err
-	}
-
-	if _, err := fs.Stat(gobinFS, "go"); errors.Is(err, fs.ErrNotExist) {
-		// the main version is already in use.
-		return current, current, nil
-	}
-
-	// to make exec.Command use the real go binary,
-	// we need to temporarily remove $GOBIN and $GOROOT/bin from $PATH.
-	realPath := os.Getenv("PATH")
-	defer os.Setenv("PATH", realPath)
-
-	var parts []string
-	for _, part := range strings.Split(realPath, string(os.PathListSeparator)) {
-		// $GOROOT/bin is added by the go<version> binary ($GOROOT is $HOME/sdk/go<version>).
-		// see https://github.com/golang/dl/blob/master/internal/version/version.go#L64.
-		gorootBin := filepath.Join(os.Getenv("GOROOT"), "bin")
-		if part != os.Getenv("GOBIN") && part != gorootBin {
-			parts = append(parts, part)
-		}
-	}
-
-	tempPath := strings.Join(parts, string(os.PathListSeparator))
-	os.Setenv("PATH", tempPath)
-
-	main, err = getVersion(ctx)
-	if err != nil {
-		return "", "", err
-	}
-
-	return main, current, nil
+type local struct {
+	main    string
+	current string
+	list    []string // (includes both main and current).
 }
 
-// installedVersions returns the list of installed Go versions.
-func installedVersions(gobinFS fs.FS) ([]string, error) {
-	entries, err := fs.ReadDir(gobinFS, ".")
+func (l *local) contains(version string) bool {
+	for _, v := range l.list {
+		if v == version {
+			return true
+		}
+	}
+	return false
+}
+
+// localVersions returns the list of installed Go versions.
+func localVersions(ctx context.Context, gobin fsx) (*local, error) {
+	currPath := os.Getenv("PATH")
+	defer os.Setenv("PATH", currPath)
+
+	// to make exec.Command use the main go binary,
+	// we need to temporary remove $GOBIN from $PATH.
+	tempPath := cutFromPath(currPath, os.Getenv("GOBIN"))
+	os.Setenv("PATH", tempPath)
+
+	output, err := exec.CommandContext(ctx, "go", "version").Output()
 	if err != nil {
 		return nil, err
 	}
 
-	var versions []string
+	// the format is `go version go1.18 darwin/arm64`, we want the semver part.
+	parts := strings.Split(string(output), " ")
+	if len(parts) != 4 {
+		return nil, fmt.Errorf("unexpected format %q", output)
+	}
+
+	main, current := strings.TrimPrefix(parts[2], "go"), ""
+
+	target, err := gobin.Readlink("go")
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		current = main // the main version is already in use.
+	case err == nil:
+		current = strings.TrimPrefix(filepath.Base(target), "go")
+	default:
+		return nil, err
+	}
+
+	entries, err := fs.ReadDir(gobin, ".")
+	if err != nil {
+		return nil, err
+	}
+
+	var list []string
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
 		version := strings.TrimPrefix(entry.Name(), "go")
 		if versionRE.MatchString(version) {
-			versions = append(versions, version)
+			list = append(list, version)
 		}
 	}
+	list = append(list, main)
 
 	// TODO(junk1tm): fix the order of rc/beta versions
 	// reverse to match the order of the go.dev version list (from newest to oldest).
-	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
-		versions[i], versions[j] = versions[j], versions[i]
+	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
+		list[i], list[j] = list[j], list[i]
 	}
 
-	return versions, nil
+	return &local{
+		main:    main,
+		current: current,
+		list:    list,
+	}, nil
 }
 
-// allVersions returns the list of all Go versions from go.dev.
-func allVersions(ctx context.Context) ([]string, error) {
+// remoteVersions returns the list of all Go versions from go.dev.
+func remoteVersions(ctx context.Context) ([]string, error) {
 	const url = "https://go.dev/dl/?mode=json&include=all"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
@@ -349,11 +331,13 @@ func command(ctx context.Context, name string, args ...string) error {
 	return cmd.Run()
 }
 
-func contains(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
+// cutFromPath cuts the given value from a $PATH-like string.
+func cutFromPath(path, value string) string {
+	var list []string
+	for _, v := range strings.Split(path, string(os.PathListSeparator)) {
+		if v != value {
+			list = append(list, v)
 		}
 	}
-	return false
+	return strings.Join(list, string(os.PathListSeparator))
 }
