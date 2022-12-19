@@ -67,22 +67,26 @@ func run() error {
 		return err
 	}
 
-	gobin, ok := os.LookupEnv("GOBIN")
+	gobinDir, ok := os.LookupEnv("GOBIN")
 	if !ok {
-		gobin = filepath.Join(home, "go", "bin")
-		os.Setenv("GOBIN", gobin)
+		gobinDir = filepath.Join(home, "go", "bin")
+		os.Setenv("GOBIN", gobinDir)
 	}
 
-	// TODO(junk1tm): make sure it works on Windows (see https://github.com/golang/go/issues/44279).
-	gobinFS, sdkFS := dirFS(gobin), dirFS(filepath.Join(home, "sdk"))
+	// TODO(junk1tm): rewrite when https://github.com/golang/go/issues/26520 is closed.
+	sdkDir := filepath.Join(home, "sdk")
+
+	// TODO(junk1tm): make sure it works on Windows
+	// (see https://github.com/golang/go/issues/44279).
+	gobin, sdk := dirFS(gobinDir), dirFS(sdkDir)
 
 	switch cmd := args[0]; cmd {
 	case "use":
-		return use(ctx, args[1:], gobinFS, sdkFS)
+		return use(ctx, args[1:], gobin, sdk)
 	case "ls":
-		return list(ctx, args[1:], gobinFS, sdkFS)
+		return list(ctx, args[1:], gobin, sdk)
 	case "rm":
-		return remove(ctx, args[1:], gobinFS, sdkFS)
+		return remove(ctx, args[1:], gobin, sdk)
 	default:
 		return usageError{fmt.Errorf("unknown command %q", cmd)}
 	}
