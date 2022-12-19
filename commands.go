@@ -19,7 +19,7 @@ import (
 )
 
 //nolint:gocritic // regexpSimplify: [0-9] reads better here than \d
-var versionRE = regexp.MustCompile(`^1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)[1-9]+)?$`)
+var versionRE = regexp.MustCompile(`^(1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)[1-9]+)?|tip)$`)
 
 // use switches the current Go version to the one specified.
 // If it's not installed, use will install it and download its SDK first.
@@ -196,7 +196,11 @@ func downloaded(version string, sdk fs.FS) bool {
 	// from https://github.com/golang/dl/blob/master/internal/version/version.go
 	// .unpacked-success is a sentinel zero-byte file to indicate that the Go
 	// version was downloaded and unpacked successfully.
-	_, err := fs.Stat(sdk, "go"+version+"/.unpacked-success")
+	name := "go" + version + "/.unpacked-success"
+	if version == "tip" {
+		name = "gotip/bin/go" // https://github.com/golang/dl/blob/master/internal/version/gotip.go#L45
+	}
+	_, err := fs.Stat(sdk, name)
 	return err == nil
 }
 
@@ -301,9 +305,10 @@ func remoteVersions(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	versions := make([]string, len(list))
-	for i, v := range list {
-		versions[i] = strings.TrimPrefix(v.Version, "go")
+	versions := make([]string, len(list)+1)
+	versions[0] = "tip" // the list does not include gotip, add it manually.
+	for i := 0; i < len(list); i++ {
+		versions[i+1] = strings.TrimPrefix(list[i].Version, "go")
 	}
 
 	return versions, nil

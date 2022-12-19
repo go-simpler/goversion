@@ -75,6 +75,14 @@ As a special case, the `main` string can be provided to quickly switch to the ma
 Switched to 1.19 (main)
 ```
 
+`gotip` can be used just like any other version.
+To update it, switch to a stable Go version and run `gotip download`.
+
+```shell
+> goversion use tip
+Switched to tip
+```
+
 ### List
 
 Prints the list of installed Go versions.
