@@ -1,4 +1,5 @@
-// https://go.dev/doc/manage-install
+// Goversion is a convenience tool that allows using any Go version as the main one.
+// It also provides basic versions management: installing, listing and removing.
 package main
 
 import (
