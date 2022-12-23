@@ -18,17 +18,20 @@ import (
 	"time"
 )
 
+// abstractions for $GOBIN and $HOME/sdk, initialized in the init() function.
+var gobin, sdk fsx
+
 //nolint:gocritic // regexpSimplify: [0-9] reads better here than \d
 var versionRE = regexp.MustCompile(`^(1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)[1-9]+)?|tip)$`)
 
 // use switches the current Go version to the one specified.
 // If it's not installed, use will install it and download its SDK first.
-func use(ctx context.Context, args []string, gobin, sdk fsx) error {
+func use(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		return usageError{errors.New("no version has been specified")}
 	}
 
-	local, err := localVersions(ctx, gobin)
+	local, err := localVersions(ctx)
 	if err != nil {
 		return err
 	}
@@ -67,7 +70,7 @@ func use(ctx context.Context, args []string, gobin, sdk fsx) error {
 
 	// it's possible that SDK download was canceled during initial installation,
 	// so we need to ensure its presence even if the go<version> binary exists.
-	if !downloaded(version, sdk) {
+	if !downloaded(version) {
 		if !initial {
 			// this message doesn't make sense during initial installation.
 			printf("%s SDK is missing. Starting download ...\n", version)
@@ -91,7 +94,7 @@ func use(ctx context.Context, args []string, gobin, sdk fsx) error {
 
 // list prints the list of installed Go versions, highlighting the current one.
 // If the -all flag is provided, list prints available versions from go.dev as well.
-func list(ctx context.Context, args []string, gobin, sdk fsx) error {
+func list(ctx context.Context, args []string) error {
 	fset := flag.NewFlagSet("list", flag.ContinueOnError)
 	fset.SetOutput(io.Discard)
 
@@ -106,7 +109,7 @@ func list(ctx context.Context, args []string, gobin, sdk fsx) error {
 		return usageError{err}
 	}
 
-	local, err := localVersions(ctx, gobin)
+	local, err := localVersions(ctx)
 	if err != nil {
 		return err
 	}
@@ -129,7 +132,7 @@ func list(ctx context.Context, args []string, gobin, sdk fsx) error {
 			extra = " (main)"
 		case !local.contains(version):
 			extra = " (not installed)"
-		case !downloaded(version, sdk):
+		case !downloaded(version):
 			extra = " (missing SDK)"
 		}
 
@@ -146,12 +149,12 @@ func list(ctx context.Context, args []string, gobin, sdk fsx) error {
 
 // remove removes the specified Go version (both the binary and the SDK).
 // If this version is current, remove will switch to the main one first.
-func remove(ctx context.Context, args []string, gobin, sdk fsx) error {
+func remove(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		return usageError{errors.New("no version has been specified")}
 	}
 
-	local, err := localVersions(ctx, gobin)
+	local, err := localVersions(ctx)
 	if err != nil {
 		return err
 	}
@@ -192,7 +195,7 @@ func remove(ctx context.Context, args []string, gobin, sdk fsx) error {
 }
 
 // downloaded checks whether the SDK of the specified Go version has been downloaded.
-func downloaded(version string, sdk fs.FS) bool {
+func downloaded(version string) bool {
 	// from https://github.com/golang/dl/blob/master/internal/version/version.go
 	// .unpacked-success is a sentinel zero-byte file to indicate that the Go
 	// version was downloaded and unpacked successfully.
@@ -220,7 +223,7 @@ func (l *local) contains(version string) bool {
 }
 
 // localVersions returns the list of installed Go versions.
-func localVersions(ctx context.Context, gobin fsx) (*local, error) {
+func localVersions(ctx context.Context) (*local, error) {
 	currPath := os.Getenv("PATH")
 	defer os.Setenv("PATH", currPath)
 
@@ -229,13 +232,13 @@ func localVersions(ctx context.Context, gobin fsx) (*local, error) {
 	tempPath := cutFromPath(currPath, os.Getenv("GOBIN"))
 	os.Setenv("PATH", tempPath)
 
-	output, err := exec.CommandContext(ctx, "go", "version").Output()
+	output, err := commandOutput(ctx, "go", "version")
 	if err != nil {
 		return nil, err
 	}
 
 	// the format is `go version go1.18 darwin/arm64`, we want the semver part.
-	parts := strings.Split(string(output), " ")
+	parts := strings.Split(output, " ")
 	if len(parts) != 4 {
 		return nil, fmt.Errorf("unexpected format %q", output)
 	}
@@ -314,14 +317,6 @@ func remoteVersions(ctx context.Context) ([]string, error) {
 	return versions, nil
 }
 
-// command is a wrapper for exec.Command that redirects stdout/stderr.
-func command(ctx context.Context, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
 // cutFromPath cuts the given value from a $PATH-like string.
 func cutFromPath(path, value string) string {
 	var list []string
@@ -332,3 +327,21 @@ func cutFromPath(path, value string) string {
 	}
 	return strings.Join(list, string(os.PathListSeparator))
 }
+
+// these are variables, so they can be mocked in tests.
+var (
+	// command is a wrapper for exec.Command.Run() that redirects stdout/stderr.
+	command = func(ctx context.Context, name string, args ...string) error {
+		cmd := exec.CommandContext(ctx, name, args...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// commandOutput is a wrapper for exec.Command.Output().
+	commandOutput = func(ctx context.Context, name string, args ...string) (string, error) {
+		cmd := exec.CommandContext(ctx, name, args...)
+		out, err := cmd.Output()
+		return string(out), err
+	}
+)
