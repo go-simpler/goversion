@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// abstractions for $GOBIN and $HOME/sdk, initialized in the init() function.
+// abstractions for $GOBIN and $HOME/sdk, initialized in the main() function.
 var gobin, sdk fsx
 
 //nolint:gocritic // regexpSimplify: [0-9] reads better here than \d

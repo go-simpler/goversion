@@ -17,26 +17,6 @@ import (
 
 var Version = "dev" // injected at build time.
 
-func init() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-
-	gobinDir, ok := os.LookupEnv("GOBIN")
-	if !ok {
-		gobinDir = filepath.Join(home, "go", "bin")
-		os.Setenv("GOBIN", gobinDir)
-	}
-
-	// TODO(junk1tm): rewrite when https://github.com/golang/go/issues/26520 is closed.
-	sdkDir := filepath.Join(home, "sdk")
-
-	// TODO(junk1tm): make sure it works on Windows
-	// (see https://github.com/golang/go/issues/44279).
-	gobin, sdk = dirFS(gobinDir), dirFS(sdkDir)
-}
-
 func main() {
 	if err := run(); err != nil {
 		var exitErr *exec.ExitError
@@ -82,6 +62,24 @@ func run() error {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+
+	gobinDir, ok := os.LookupEnv("GOBIN")
+	if !ok {
+		gobinDir = filepath.Join(home, "go", "bin")
+		os.Setenv("GOBIN", gobinDir)
+	}
+
+	// TODO(junk1tm): rewrite when https://github.com/golang/go/issues/26520 is closed.
+	sdkDir := filepath.Join(home, "sdk")
+
+	// TODO(junk1tm): make sure it works on Windows
+	// (see https://github.com/golang/go/issues/44279).
+	gobin, sdk = dirFS(gobinDir), dirFS(sdkDir)
 
 	switch cmd := args[0]; cmd {
 	case "use":
