@@ -47,21 +47,21 @@ func use(ctx context.Context, args []string) error {
 
 	switch version {
 	case local.current:
-		printf("%s is already in use\n", version)
+		fmt.Fprintf(output, "%s is already in use\n", version)
 		return nil
 	case local.main:
 		// for switching to the main version simply removing the symlink is enough.
 		if err := gobin.Remove("go"); err != nil {
 			return err
 		}
-		printf("Switched to %s (main)\n", version)
+		fmt.Fprintf(output, "Switched to %s (main)\n", version)
 		return nil
 	}
 
 	initial := false
 	if !local.contains(version) {
 		initial = true
-		printf("%s is not installed. Looking for it on go.dev ...\n", version)
+		fmt.Fprintf(output, "%s is not installed. Looking for it on go.dev ...\n", version)
 		url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
 		if err := command(ctx, "go", "install", url); err != nil {
 			return err
@@ -73,7 +73,7 @@ func use(ctx context.Context, args []string) error {
 	if !downloaded(version) {
 		if !initial {
 			// this message doesn't make sense during initial installation.
-			printf("%s SDK is missing. Starting download ...\n", version)
+			fmt.Fprintf(output, "%s SDK is missing. Starting download ...\n", version)
 		}
 		if err := command(ctx, "go"+version, "download"); err != nil {
 			return err
@@ -88,7 +88,7 @@ func use(ctx context.Context, args []string) error {
 		return err
 	}
 
-	printf("Switched to %s\n", version)
+	fmt.Fprintf(output, "Switched to %s\n", version)
 	return nil
 }
 
@@ -141,7 +141,7 @@ func list(ctx context.Context, args []string) error {
 			prefix = "*"
 		}
 
-		printf("%s %-10s%s\n", prefix, version, extra)
+		fmt.Fprintf(output, "%s %-10s%s\n", prefix, version, extra)
 	}
 
 	return nil
@@ -180,7 +180,7 @@ func remove(ctx context.Context, args []string) error {
 		if err := gobin.Remove("go"); err != nil {
 			return err
 		}
-		printf("Switched to %s (main)\n", local.main)
+		fmt.Fprintf(output, "Switched to %s (main)\n", local.main)
 	}
 
 	if err := gobin.Remove("go" + version); err != nil {
@@ -190,7 +190,7 @@ func remove(ctx context.Context, args []string) error {
 		return err
 	}
 
-	printf("Removed %s\n", version)
+	fmt.Fprintf(output, "Removed %s\n", version)
 	return nil
 }
 

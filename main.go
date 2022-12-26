@@ -23,16 +23,16 @@ func main() {
 
 		switch {
 		case errors.Is(err, flag.ErrHelp):
-			printf(usage)
+			fmt.Fprintf(output, usage)
 			os.Exit(0)
 		case errors.As(err, new(usageError)):
-			printf("Error: %v\n\n%s", err, usage)
+			fmt.Fprintf(output, "Error: %v\n\n%s", err, usage)
 			os.Exit(2)
 		case errors.As(err, &exitErr):
 			code := exitErr.ExitCode()
 			os.Exit(code)
 		default:
-			printf("Error: %v\n", err)
+			fmt.Fprintf(output, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	}
@@ -51,7 +51,7 @@ func run() error {
 	}
 
 	if printVersion {
-		printf("goversion %s %s/%s (built by %s)\n", Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		fmt.Fprintf(output, "goversion %s %s/%s\n", Version, runtime.GOOS, runtime.GOARCH)
 		return nil
 	}
 
@@ -93,9 +93,7 @@ func run() error {
 	}
 }
 
-func printf(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, format, args...)
-}
+var output io.Writer = os.Stderr
 
 const usage = `Usage: goversion [flags] <command> [command flags]
 
