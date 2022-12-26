@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// abstractions for $GOBIN and $HOME/sdk, initialized in the init() function.
+// abstractions for $GOBIN and $HOME/sdk, initialized in the main() function.
 var gobin, sdk fsx
 
 //nolint:gocritic // regexpSimplify: [0-9] reads better here than \d
@@ -47,21 +47,21 @@ func use(ctx context.Context, args []string) error {
 
 	switch version {
 	case local.current:
-		printf("%s is already in use\n", version)
+		fmt.Fprintf(output, "%s is already in use\n", version)
 		return nil
 	case local.main:
 		// for switching to the main version simply removing the symlink is enough.
 		if err := gobin.Remove("go"); err != nil {
 			return err
 		}
-		printf("Switched to %s (main)\n", version)
+		fmt.Fprintf(output, "Switched to %s (main)\n", version)
 		return nil
 	}
 
 	initial := false
 	if !local.contains(version) {
 		initial = true
-		printf("%s is not installed. Looking for it on go.dev ...\n", version)
+		fmt.Fprintf(output, "%s is not installed. Looking for it on go.dev ...\n", version)
 		url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
 		if err := command(ctx, "go", "install", url); err != nil {
 			return err
@@ -73,7 +73,7 @@ func use(ctx context.Context, args []string) error {
 	if !downloaded(version) {
 		if !initial {
 			// this message doesn't make sense during initial installation.
-			printf("%s SDK is missing. Starting download ...\n", version)
+			fmt.Fprintf(output, "%s SDK is missing. Starting download ...\n", version)
 		}
 		if err := command(ctx, "go"+version, "download"); err != nil {
 			return err
@@ -88,7 +88,7 @@ func use(ctx context.Context, args []string) error {
 		return err
 	}
 
-	printf("Switched to %s\n", version)
+	fmt.Fprintf(output, "Switched to %s\n", version)
 	return nil
 }
 
@@ -141,7 +141,7 @@ func list(ctx context.Context, args []string) error {
 			prefix = "*"
 		}
 
-		printf("%s %-10s%s\n", prefix, version, extra)
+		fmt.Fprintf(output, "%s %-10s%s\n", prefix, version, extra)
 	}
 
 	return nil
@@ -180,7 +180,7 @@ func remove(ctx context.Context, args []string) error {
 		if err := gobin.Remove("go"); err != nil {
 			return err
 		}
-		printf("Switched to %s (main)\n", local.main)
+		fmt.Fprintf(output, "Switched to %s (main)\n", local.main)
 	}
 
 	if err := gobin.Remove("go" + version); err != nil {
@@ -190,7 +190,7 @@ func remove(ctx context.Context, args []string) error {
 		return err
 	}
 
-	printf("Removed %s\n", version)
+	fmt.Fprintf(output, "Removed %s\n", version)
 	return nil
 }
 
@@ -282,6 +282,10 @@ func localVersions(ctx context.Context) (*local, error) {
 	}, nil
 }
 
+var httpClient interface {
+	Do(*http.Request) (*http.Response, error)
+} = &http.Client{Timeout: time.Minute}
+
 // remoteVersions returns the list of all Go versions from go.dev.
 func remoteVersions(ctx context.Context) ([]string, error) {
 	const url = "https://go.dev/dl/?mode=json&include=all"
@@ -291,9 +295,7 @@ func remoteVersions(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: time.Minute}
-
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

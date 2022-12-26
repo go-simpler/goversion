@@ -17,42 +17,22 @@ import (
 
 var Version = "dev" // injected at build time.
 
-func init() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-
-	gobinDir, ok := os.LookupEnv("GOBIN")
-	if !ok {
-		gobinDir = filepath.Join(home, "go", "bin")
-		os.Setenv("GOBIN", gobinDir)
-	}
-
-	// TODO(junk1tm): rewrite when https://github.com/golang/go/issues/26520 is closed.
-	sdkDir := filepath.Join(home, "sdk")
-
-	// TODO(junk1tm): make sure it works on Windows
-	// (see https://github.com/golang/go/issues/44279).
-	gobin, sdk = dirFS(gobinDir), dirFS(sdkDir)
-}
-
 func main() {
 	if err := run(); err != nil {
 		var exitErr *exec.ExitError
 
 		switch {
 		case errors.Is(err, flag.ErrHelp):
-			printf(usage)
+			fmt.Fprintf(output, "%s", usage)
 			os.Exit(0)
 		case errors.As(err, new(usageError)):
-			printf("Error: %v\n\n%s", err, usage)
+			fmt.Fprintf(output, "Error: %v\n\n%s", err, usage)
 			os.Exit(2)
 		case errors.As(err, &exitErr):
 			code := exitErr.ExitCode()
 			os.Exit(code)
 		default:
-			printf("Error: %v\n", err)
+			fmt.Fprintf(output, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	}
@@ -71,7 +51,7 @@ func run() error {
 	}
 
 	if printVersion {
-		printf("goversion %s %s/%s (built by %s)\n", Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		fmt.Fprintf(output, "goversion %s %s/%s\n", Version, runtime.GOOS, runtime.GOARCH)
 		return nil
 	}
 
@@ -82,6 +62,24 @@ func run() error {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+
+	gobinDir, ok := os.LookupEnv("GOBIN")
+	if !ok {
+		gobinDir = filepath.Join(home, "go", "bin")
+		os.Setenv("GOBIN", gobinDir)
+	}
+
+	// TODO(junk1tm): rewrite when https://github.com/golang/go/issues/26520 is closed.
+	sdkDir := filepath.Join(home, "sdk")
+
+	// TODO(junk1tm): make sure it works on Windows
+	// (see https://github.com/golang/go/issues/44279).
+	gobin, sdk = dirFS(gobinDir), dirFS(sdkDir)
 
 	switch cmd := args[0]; cmd {
 	case "use":
@@ -95,9 +93,7 @@ func run() error {
 	}
 }
 
-func printf(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, format, args...)
-}
+var output io.Writer = os.Stderr
 
 const usage = `Usage: goversion [flags] <command> [command flags]
 
