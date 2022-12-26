@@ -282,6 +282,10 @@ func localVersions(ctx context.Context) (*local, error) {
 	}, nil
 }
 
+var httpClient interface {
+	Do(*http.Request) (*http.Response, error)
+} = &http.Client{Timeout: time.Minute}
+
 // remoteVersions returns the list of all Go versions from go.dev.
 func remoteVersions(ctx context.Context) ([]string, error) {
 	const url = "https://go.dev/dl/?mode=json&include=all"
@@ -291,9 +295,7 @@ func remoteVersions(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: time.Minute}
-
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

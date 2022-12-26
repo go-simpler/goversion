@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -38,7 +40,7 @@ const mainVersion = "1.19"
 var ctx = context.Background()
 
 func Test_use(t *testing.T) {
-	t.Run("install fresh version", func(t *testing.T) {
+	t.Run("install new version", func(t *testing.T) {
 		var steps []string
 		recordCommands(&steps)
 
@@ -59,7 +61,7 @@ func Test_use(t *testing.T) {
 		})
 	})
 
-	t.Run("switch to the current version", func(t *testing.T) {
+	t.Run("switch to current version", func(t *testing.T) {
 		var steps []string
 		recordCommands(&steps)
 
@@ -88,7 +90,7 @@ func Test_use(t *testing.T) {
 		})
 	})
 
-	t.Run("switch to the main version", func(t *testing.T) {
+	t.Run("switch to main version", func(t *testing.T) {
 		var steps []string
 		recordCommands(&steps)
 
@@ -152,6 +154,47 @@ func Test_list(t *testing.T) {
 			"call: gobin.ReadDir(.)",                   // 3. read installed versions
 			"call: sdk.Stat(go1.18/.unpacked-success)", // 4. check 1.18 SDK
 			"call: sdk.Stat(go1.17/.unpacked-success)", // 5. check 1.17 SDK
+		})
+	})
+
+	t.Run("list remote versions", func(t *testing.T) {
+		var steps []string
+		recordCommands(&steps)
+
+		gobin = &spyFS{
+			dir:   "gobin",
+			link:  "/path/to/go1.18",
+			files: []dirFile{"go1.18"},
+			calls: &steps,
+		}
+		sdk = &spyFS{
+			dir:   "sdk",
+			files: []dirFile{"go1.18/.unpacked-success"},
+			calls: &steps,
+		}
+
+		var buf bytes.Buffer
+		output = &buf
+
+		httpClient = &httpSpy{
+			requests: &steps,
+			response: `[{"version":"1.19"},{"version":"1.18"},{"version":"1.17"}]`,
+		}
+
+		err := list(ctx, []string{"-all"})
+		assert.NoErr[F](t, err)
+		assert.Equal[E](t, "\n"+buf.String(), `
+  tip        (not installed)
+  1.19       (main)
+* 1.18      
+  1.17       (not installed)
+`)
+		assert.Equal[E](t, steps, []string{
+			"exec: go version",                               // 1. read main version
+			"call: gobin.Readlink(go)",                       // 2. read current version
+			"call: gobin.ReadDir(.)",                         // 3. read installed versions
+			"http: https://go.dev/dl/?mode=json&include=all", // 4. get remote versions
+			"call: sdk.Stat(go1.18/.unpacked-success)",       // 5. check 1.18 SDK
 		})
 	})
 }
@@ -228,3 +271,13 @@ func (f dirFile) Name() string               { return string(f) }
 func (f dirFile) IsDir() bool                { return false }
 func (f dirFile) Type() fs.FileMode          { panic("unimplemented") }
 func (f dirFile) Info() (fs.FileInfo, error) { panic("unimplemented") }
+
+type httpSpy struct {
+	requests *[]string
+	response string
+}
+
+func (s *httpSpy) Do(req *http.Request) (*http.Response, error) {
+	*s.requests = append(*s.requests, "http: "+req.URL.String())
+	return &http.Response{Body: io.NopCloser(strings.NewReader(s.response))}, nil
+}
