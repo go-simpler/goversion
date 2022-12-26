@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/fs"
@@ -47,14 +48,14 @@ func Test_use(t *testing.T) {
 		err := use(ctx, []string{"1.18"})
 		assert.NoErr[F](t, err)
 		assert.Equal[E](t, steps, []string{
-			"command: go version",
-			"call: gobin.Readlink(go)",
-			"call: gobin.ReadDir(.)",
-			"command: go install golang.org/dl/go1.18@latest",
-			"call: sdk.Stat(go1.18/.unpacked-success)",
-			"command: go1.18 download",
-			"call: gobin.Remove(go)",
-			"call: gobin.Symlink(go1.18, go)",
+			"exec: go version",                             // 1. read main version
+			"call: gobin.Readlink(go)",                     // 2. read current version
+			"call: gobin.ReadDir(.)",                       // 3. read installed versions
+			"exec: go install golang.org/dl/go1.18@latest", // 4. install 1.18
+			"call: sdk.Stat(go1.18/.unpacked-success)",     // 5. check 1.18 SDK
+			"exec: go1.18 download",                        // 6. download 1.18 SDK
+			"call: gobin.Remove(go)",                       // 7. remove previous symlink
+			"call: gobin.Symlink(go1.18, go)",              // 8. create new symlink
 		})
 	})
 
@@ -74,12 +75,16 @@ func Test_use(t *testing.T) {
 			calls: &steps,
 		}
 
+		var buf bytes.Buffer
+		output = &buf
+
 		err := use(ctx, []string{"1.18"})
 		assert.NoErr[F](t, err)
+		assert.Equal[E](t, buf.String(), "1.18 is already in use\n")
 		assert.Equal[E](t, steps, []string{
-			"command: go version",
-			"call: gobin.Readlink(go)",
-			"call: gobin.ReadDir(.)",
+			"exec: go version",         // 1. read main version
+			"call: gobin.Readlink(go)", // 2. read current version
+			"call: gobin.ReadDir(.)",   // 3. read installed versions
 		})
 	})
 
@@ -99,13 +104,54 @@ func Test_use(t *testing.T) {
 			calls: &steps,
 		}
 
+		var buf bytes.Buffer
+		output = &buf
+
 		err := use(ctx, []string{"main"})
 		assert.NoErr[F](t, err)
+		assert.Equal[E](t, buf.String(), "Switched to 1.19 (main)\n")
 		assert.Equal[E](t, steps, []string{
-			"command: go version",
-			"call: gobin.Readlink(go)",
-			"call: gobin.ReadDir(.)",
-			"call: gobin.Remove(go)",
+			"exec: go version",         // 1. read main version
+			"call: gobin.Readlink(go)", // 2. read current version
+			"call: gobin.ReadDir(.)",   // 3. read installed versions
+			"call: gobin.Remove(go)",   // 4. remove symlink (switch to main)
+		})
+	})
+}
+
+func Test_list(t *testing.T) {
+	t.Run("list local versions", func(t *testing.T) {
+		var steps []string
+		recordCommands(&steps)
+
+		gobin = &spyFS{
+			dir:   "gobin",
+			link:  "/path/to/go1.18",
+			files: []dirFile{"go1.17", "go1.18"},
+			calls: &steps,
+		}
+		sdk = &spyFS{
+			dir:   "sdk",
+			files: []dirFile{"go1.18/.unpacked-success"}, // 1.17 SDK is missing.
+			calls: &steps,
+		}
+
+		var buf bytes.Buffer
+		output = &buf
+
+		err := list(ctx, nil)
+		assert.NoErr[F](t, err)
+		assert.Equal[E](t, "\n"+buf.String(), `
+  1.19       (main)
+* 1.18      
+  1.17       (missing SDK)
+`)
+		assert.Equal[E](t, steps, []string{
+			"exec: go version",                         // 1. read main version
+			"call: gobin.Readlink(go)",                 // 2. read current version
+			"call: gobin.ReadDir(.)",                   // 3. read installed versions
+			"call: sdk.Stat(go1.18/.unpacked-success)", // 4. check 1.18 SDK
+			"call: sdk.Stat(go1.17/.unpacked-success)", // 5. check 1.17 SDK
 		})
 	})
 }
@@ -113,7 +159,7 @@ func Test_use(t *testing.T) {
 func recordCommands(commands *[]string) {
 	command = func(ctx context.Context, name string, args ...string) error {
 		c := strings.Join(append([]string{name}, args...), " ")
-		*commands = append(*commands, "command: "+c)
+		*commands = append(*commands, "exec: "+c)
 		return nil
 	}
 	commandOutput = func(ctx context.Context, name string, args ...string) (string, error) {

@@ -23,7 +23,7 @@ func main() {
 
 		switch {
 		case errors.Is(err, flag.ErrHelp):
-			fmt.Fprintf(output, usage)
+			fmt.Fprintf(output, "%s", usage)
 			os.Exit(0)
 		case errors.As(err, new(usageError)):
 			fmt.Fprintf(output, "Error: %v\n\n%s", err, usage)
