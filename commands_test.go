@@ -227,6 +227,31 @@ func Test_remove(t *testing.T) {
 			"call: sdk.RemoveAll(go1.18)", // 5. remove 1.18 SDK
 		})
 	})
+
+	t.Run("remove non-existing version", func(t *testing.T) {
+		var steps []string
+		recordCommands(&steps)
+
+		gobin = &spyFS{
+			dir:   "gobin",
+			link:  "/path/to/go1.18",
+			files: []dirFile{"go1.18"},
+			calls: &steps,
+		}
+		sdk = &spyFS{
+			dir:   "sdk",
+			files: []dirFile{"go1.18/.unpacked-success"},
+			calls: &steps,
+		}
+
+		err := remove(ctx, []string{"1.17"})
+		assert.Equal[F](t, err.Error(), "1.17 is not installed")
+		assert.Equal[E](t, steps, []string{
+			"exec: go version",         // 1. read main version
+			"call: gobin.Readlink(go)", // 2. read current version
+			"call: gobin.ReadDir(.)",   // 3. read installed versions
+		})
+	})
 }
 
 func recordCommands(commands *[]string) {
