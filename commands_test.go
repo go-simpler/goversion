@@ -46,6 +46,7 @@ func Test_use(t *testing.T) {
 
 		gobin = &spyFS{dir: "gobin", calls: &steps}
 		sdk = &spyFS{dir: "sdk", calls: &steps}
+		output = io.Discard
 
 		err := use(ctx, []string{"1.18"})
 		assert.NoErr[F](t, err)
@@ -215,6 +216,7 @@ func Test_remove(t *testing.T) {
 			files: []dirFile{"go1.18/.unpacked-success"},
 			calls: &steps,
 		}
+		output = io.Discard
 
 		err := remove(ctx, []string{"1.18"})
 		assert.NoErr[F](t, err)
@@ -243,6 +245,7 @@ func Test_remove(t *testing.T) {
 			files: []dirFile{"go1.18/.unpacked-success"},
 			calls: &steps,
 		}
+		output = io.Discard
 
 		err := remove(ctx, []string{"1.17"})
 		assert.Equal[F](t, err.Error(), "1.17 is not installed")
