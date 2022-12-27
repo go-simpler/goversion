@@ -199,6 +199,36 @@ func Test_list(t *testing.T) {
 	})
 }
 
+func Test_remove(t *testing.T) {
+	t.Run("remove existing version", func(t *testing.T) {
+		var steps []string
+		recordCommands(&steps)
+
+		gobin = &spyFS{
+			dir:   "gobin",
+			link:  "/path/to/go1.18",
+			files: []dirFile{"go1.18"},
+			calls: &steps,
+		}
+		sdk = &spyFS{
+			dir:   "sdk",
+			files: []dirFile{"go1.18/.unpacked-success"},
+			calls: &steps,
+		}
+
+		err := remove(ctx, []string{"1.18"})
+		assert.NoErr[F](t, err)
+		assert.Equal[E](t, steps, []string{
+			"exec: go version",            // 1. read main version
+			"call: gobin.Readlink(go)",    // 2. read current version
+			"call: gobin.ReadDir(.)",      // 3. read installed versions
+			"call: gobin.Remove(go)",      // 4. remove symlink (switch to main)
+			"call: gobin.Remove(go1.18)",  // 4. remove 1.18 binary
+			"call: sdk.RemoveAll(go1.18)", // 5. remove 1.18 SDK
+		})
+	})
+}
+
 func recordCommands(commands *[]string) {
 	command = func(ctx context.Context, name string, args ...string) error {
 		c := strings.Join(append([]string{name}, args...), " ")
