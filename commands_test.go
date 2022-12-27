@@ -46,6 +46,7 @@ func Test_use(t *testing.T) {
 
 		gobin = &spyFS{dir: "gobin", calls: &steps}
 		sdk = &spyFS{dir: "sdk", calls: &steps}
+		output = io.Discard
 
 		err := use(ctx, []string{"1.18"})
 		assert.NoErr[F](t, err)
@@ -195,6 +196,63 @@ func Test_list(t *testing.T) {
 			"call: gobin.ReadDir(.)",                         // 3. read installed versions
 			"http: https://go.dev/dl/?mode=json&include=all", // 4. get remote versions
 			"call: sdk.Stat(go1.18/.unpacked-success)",       // 5. check 1.18 SDK
+		})
+	})
+}
+
+func Test_remove(t *testing.T) {
+	t.Run("remove existing version", func(t *testing.T) {
+		var steps []string
+		recordCommands(&steps)
+
+		gobin = &spyFS{
+			dir:   "gobin",
+			link:  "/path/to/go1.18",
+			files: []dirFile{"go1.18"},
+			calls: &steps,
+		}
+		sdk = &spyFS{
+			dir:   "sdk",
+			files: []dirFile{"go1.18/.unpacked-success"},
+			calls: &steps,
+		}
+		output = io.Discard
+
+		err := remove(ctx, []string{"1.18"})
+		assert.NoErr[F](t, err)
+		assert.Equal[E](t, steps, []string{
+			"exec: go version",            // 1. read main version
+			"call: gobin.Readlink(go)",    // 2. read current version
+			"call: gobin.ReadDir(.)",      // 3. read installed versions
+			"call: gobin.Remove(go)",      // 4. remove symlink (switch to main)
+			"call: gobin.Remove(go1.18)",  // 4. remove 1.18 binary
+			"call: sdk.RemoveAll(go1.18)", // 5. remove 1.18 SDK
+		})
+	})
+
+	t.Run("remove non-existing version", func(t *testing.T) {
+		var steps []string
+		recordCommands(&steps)
+
+		gobin = &spyFS{
+			dir:   "gobin",
+			link:  "/path/to/go1.18",
+			files: []dirFile{"go1.18"},
+			calls: &steps,
+		}
+		sdk = &spyFS{
+			dir:   "sdk",
+			files: []dirFile{"go1.18/.unpacked-success"},
+			calls: &steps,
+		}
+		output = io.Discard
+
+		err := remove(ctx, []string{"1.17"})
+		assert.Equal[F](t, err.Error(), "1.17 is not installed")
+		assert.Equal[E](t, steps, []string{
+			"exec: go version",         // 1. read main version
+			"call: gobin.Readlink(go)", // 2. read current version
+			"call: gobin.ReadDir(.)",   // 3. read installed versions
 		})
 	})
 }
