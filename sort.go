@@ -8,8 +8,11 @@ import (
 // copy-pasted from https://github.com/golang/website/blob/master/internal/dl/dl.go
 
 func versionLess(a, b string) bool {
+	// put gotip at the top of the list.
 	if a == "tip" {
-		return true // put gotip at the top of the list.
+		return true
+	} else if b == "tip" {
+		return false
 	}
 	maja, mina, ta := parseVersion(a)
 	majb, minb, tb := parseVersion(b)
