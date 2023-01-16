@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -17,21 +18,28 @@ func cutFromPath(path, value string) string {
 	return strings.Join(list, string(os.PathListSeparator))
 }
 
-// latestPatches filters the sorted versions list,
+// latestPatches filters the given version list (must be sorted),
 // returning only the latest patch for each minor version.
-func latestPatches(vs []string) []string {
-	if l := len(vs); l == 0 || l == 1 {
-		return vs
+func latestPatches(versions []string) []string {
+	sorted := sort.SliceIsSorted(versions, func(i, j int) bool {
+		return versionLess(versions[i], versions[j])
+	})
+	if !sorted {
+		panic("version list is not sorted")
 	}
 
-	latest := []string{vs[0]}
-	prev, _, _ := parseVersion(vs[0])
+	if l := len(versions); l == 0 || l == 1 {
+		return versions
+	}
 
-	for i := 1; i < len(vs); i++ {
-		curr, _, _ := parseVersion(vs[i])
+	latest := []string{versions[0]}
+	prev, _, _ := parseVersion(versions[0])
+
+	for i := 1; i < len(versions); i++ {
+		curr, _, _ := parseVersion(versions[i])
 		if prev != curr {
 			prev = curr
-			latest = append(latest, vs[i])
+			latest = append(latest, versions[i])
 		}
 	}
 
