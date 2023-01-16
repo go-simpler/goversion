@@ -21,6 +21,24 @@ import (
 // abstractions for $GOBIN and $HOME/sdk, initialized in the main() function.
 var gobin, sdk fsx
 
+// these are variables, so they can be mocked in tests.
+var (
+	// command is a wrapper for exec.Command.Run() that redirects stdout/stderr.
+	command = func(ctx context.Context, name string, args ...string) error {
+		cmd := exec.CommandContext(ctx, name, args...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// commandOutput is a wrapper for exec.Command.Output().
+	commandOutput = func(ctx context.Context, name string, args ...string) (string, error) {
+		cmd := exec.CommandContext(ctx, name, args...)
+		out, err := cmd.Output()
+		return string(out), err
+	}
+)
+
 //nolint:gocritic // regexpSimplify: [0-9] reads better here than \d
 var versionRE = regexp.MustCompile(`^(1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)[1-9]+)?|tip)$`)
 
@@ -121,6 +139,11 @@ func list(ctx context.Context, args []string) error {
 		}
 	}
 
+	if only == "latest" {
+		only = ""
+		versions = latestPatches(versions)
+	}
+
 	for _, version := range versions {
 		if !strings.HasPrefix(version, only) {
 			continue
@@ -210,7 +233,7 @@ func downloaded(version string) bool {
 type local struct {
 	main    string
 	current string
-	list    []string // (includes both main and current).
+	list    []string // includes both main and current.
 }
 
 func (l *local) contains(version string) bool {
@@ -318,32 +341,3 @@ func remoteVersions(ctx context.Context) ([]string, error) {
 
 	return versions, nil
 }
-
-// cutFromPath cuts the given value from a $PATH-like string.
-func cutFromPath(path, value string) string {
-	var list []string
-	for _, v := range strings.Split(path, string(os.PathListSeparator)) {
-		if v != value {
-			list = append(list, v)
-		}
-	}
-	return strings.Join(list, string(os.PathListSeparator))
-}
-
-// these are variables, so they can be mocked in tests.
-var (
-	// command is a wrapper for exec.Command.Run() that redirects stdout/stderr.
-	command = func(ctx context.Context, name string, args ...string) error {
-		cmd := exec.CommandContext(ctx, name, args...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		return cmd.Run()
-	}
-
-	// commandOutput is a wrapper for exec.Command.Output().
-	commandOutput = func(ctx context.Context, name string, args ...string) (string, error) {
-		cmd := exec.CommandContext(ctx, name, args...)
-		out, err := cmd.Output()
-		return string(out), err
-	}
-)

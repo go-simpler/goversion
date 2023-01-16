@@ -100,10 +100,12 @@ const usage = `Usage: goversion [flags] <command> [command flags]
 Commands:
 
 	use <version>        switch the current Go version (will be installed if not already exists)
+	use main             a shortcut for switching to the main Go version
 
 	ls                   print the list of installed Go versions
 	    -a (-all)        print available versions from go.dev as well
 	    -only=<prefix>   print only versions starting with this prefix
+	    -only=latest     print only the latest patch for each minor version
 
 	rm <version>         remove the specified Go version (both the binary and the SDK)
 
