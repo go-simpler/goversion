@@ -93,7 +93,7 @@ func run() error {
 	}
 }
 
-var output io.Writer = os.Stderr
+var output io.Writer = os.Stdout
 
 const usage = `Usage: goversion [flags] <command> [command flags]
 

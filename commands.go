@@ -26,8 +26,8 @@ var (
 	// command is a wrapper for exec.Command.Run() that redirects stdout/stderr.
 	command = func(ctx context.Context, name string, args ...string) error {
 		cmd := exec.CommandContext(ctx, name, args...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdout = output
+		cmd.Stderr = output
 		return cmd.Run()
 	}
 
