@@ -100,7 +100,7 @@ const usage = `Usage: goversion [flags] <command> [command flags]
 Commands:
 
 	use <version>        switch the current Go version (will be installed if not already exists)
-	use main             a shortcut for switching to the main Go version
+	use main             switch to the main Go version
 
 	ls                   print the list of installed Go versions
 	    -a (-all)        print available versions from go.dev as well
