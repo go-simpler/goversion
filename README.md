@@ -122,6 +122,19 @@ The full list is quite long, to limit it the `-only=<prefix>` flag can be used.
   1.18beta1  (not installed)
 ```
 
+If the `-only=latest` combination is provided, `ls` prints only the latest patch for each minor version.
+
+```shell
+> goversion ls -a -only=latest
+  1.19.5     (not installed)
+  1.18.10    (not installed)
+# ...
+  1.10.8     (not installed)
+# ...
+  1.2.2      (not installed)
+  1          (not installed)
+```
+
 ### Remove
 
 Removes the specified Go version (both the binary and the SDK).
