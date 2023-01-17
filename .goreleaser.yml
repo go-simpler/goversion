@@ -1,17 +1,15 @@
 builds:
-  - goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
+  - env:
       - CGO_ENABLED=0
     flags:
       - -trimpath
     ldflags:
       - -s -w -X main.Version={{.Version}}
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - windows_amd64
 
 archives:
   - replacements:
