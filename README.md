@@ -1,9 +1,9 @@
 # goversion
 
-[![ci](https://github.com/junk1tm/goversion/actions/workflows/go.yml/badge.svg)](https://github.com/junk1tm/goversion/actions/workflows/go.yml)
-[![docs](https://pkg.go.dev/badge/github.com/junk1tm/goversion.svg)](https://pkg.go.dev/github.com/junk1tm/goversion)
-[![report](https://goreportcard.com/badge/github.com/junk1tm/goversion)](https://goreportcard.com/report/github.com/junk1tm/goversion)
-[![codecov](https://codecov.io/gh/junk1tm/goversion/branch/main/graph/badge.svg)](https://codecov.io/gh/junk1tm/goversion)
+[![ci](https://github.com/tmzane/goversion/actions/workflows/go.yml/badge.svg)](https://github.com/tmzane/goversion/actions/workflows/go.yml)
+[![docs](https://pkg.go.dev/badge/go.tmz.dev/goversion.svg)](https://pkg.go.dev/go.tmz.dev/goversion)
+[![report](https://goreportcard.com/badge/go.tmz.dev/goversion)](https://goreportcard.com/report/go.tmz.dev/goversion)
+[![codecov](https://codecov.io/gh/tmzane/goversion/branch/main/graph/badge.svg)](https://codecov.io/gh/tmzane/goversion)
 
 Easily switch between multiple Go versions
 
@@ -44,13 +44,13 @@ go version go1.18 darwin/arm64
 ### Go
 
 ```shell
-go install github.com/junk1tm/goversion@latest
+go install go.tmz.dev/goversion@latest
 ```
 
 ### Brew
 
 ```shell
-brew install junk1tm/tap/goversion
+brew install tmzane/tap/goversion
 ```
 
 ### Manual
@@ -145,4 +145,4 @@ Removed 1.18
 ```
 
 [1]: https://go.dev/doc/manage-install
-[2]: https://github.com/junk1tm/goversion/releases
+[2]: https://github.com/tmzane/goversion/releases
