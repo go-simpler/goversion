@@ -1,4 +1,4 @@
-module github.com/junk1tm/goversion
+module go.tmz.dev/goversion
 
 go 1.18
 

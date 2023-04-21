@@ -15,7 +15,7 @@ import (
 	"runtime"
 )
 
-var Version = "dev" // injected at build time.
+var version = "dev" // injected at build time.
 
 func main() {
 	if err := run(); err != nil {
@@ -51,7 +51,7 @@ func run() error {
 	}
 
 	if printVersion {
-		fmt.Fprintf(output, "goversion %s %s/%s\n", Version, runtime.GOOS, runtime.GOARCH)
+		fmt.Fprintf(output, "goversion version %s %s/%s\n", version, runtime.GOOS, runtime.GOARCH)
 		return nil
 	}
 
@@ -74,11 +74,11 @@ func run() error {
 		os.Setenv("GOBIN", gobinDir)
 	}
 
-	// TODO(junk1tm): rewrite when https://github.com/golang/go/issues/26520 is closed.
+	// TODO: rewrite when https://github.com/golang/go/issues/26520 is closed.
 	sdkDir := filepath.Join(home, "sdk")
 
-	// TODO(junk1tm): make sure it works on Windows
-	// (see https://github.com/golang/go/issues/44279).
+	// TODO: make sure it works on Windows;
+	// see https://github.com/golang/go/issues/44279 for details.
 	gobin, sdk = dirFS(gobinDir), dirFS(sdkDir)
 
 	switch cmd := args[0]; cmd {
