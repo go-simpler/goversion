@@ -1,8 +1,8 @@
 # goversion
 
-[![ci](https://github.com/tmzane/goversion/actions/workflows/go.yml/badge.svg)](https://github.com/tmzane/goversion/actions/workflows/go.yml)
-[![docs](https://pkg.go.dev/badge/go.tmz.dev/goversion.svg)](https://pkg.go.dev/go.tmz.dev/goversion)
-[![report](https://goreportcard.com/badge/go.tmz.dev/goversion)](https://goreportcard.com/report/go.tmz.dev/goversion)
+[![checks](https://github.com/tmzane/goversion/actions/workflows/checks.yml/badge.svg)](https://github.com/tmzane/goversion/actions/workflows/checks.yml)
+[![pkg.go.dev](https://pkg.go.dev/badge/go.tmz.dev/goversion.svg)](https://pkg.go.dev/go.tmz.dev/goversion)
+[![goreportcard](https://goreportcard.com/badge/go.tmz.dev/goversion)](https://goreportcard.com/report/go.tmz.dev/goversion)
 [![codecov](https://codecov.io/gh/tmzane/goversion/branch/main/graph/badge.svg)](https://codecov.io/gh/tmzane/goversion)
 
 Easily switch between multiple Go versions
