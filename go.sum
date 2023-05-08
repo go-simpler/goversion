@@ -1,2 +1,2 @@
-github.com/go-simpler/assert v0.3.0 h1:ShvsnSgtoD4XWESphywQq+aut/a3pyYg9ULm/xh4leY=
-github.com/go-simpler/assert v0.3.0/go.mod h1:vIBA7sMwyU2SB2fWV5rLvXJRFRP5RISLbdrQ97Sjk34=
+go-simpler.org/assert v0.5.0 h1:+5L/lajuQtzmbtEfh69sr5cRf2/xZzyJhFjoOz/PPqs=
+go-simpler.org/assert v0.5.0/go.mod h1:74Eqh5eI6vCK6Y5l3PI8ZYFXG4Sa+tkr70OIPJAUr28=
