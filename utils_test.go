@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-simpler/assert"
-	. "github.com/go-simpler/assert/dotimport"
+	"go-simpler.org/assert"
+	. "go-simpler.org/assert/dotimport"
 )
 
 func Test_cutFromPath(t *testing.T) {
