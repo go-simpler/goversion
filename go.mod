@@ -1,5 +1,5 @@
 module go.tmz.dev/goversion
 
-go 1.18
+go 1.21
 
-require go-simpler.org/assert v0.6.0
+require go-simpler.org/assert v0.7.0
