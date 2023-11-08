@@ -1,4 +1,4 @@
-module go.tmz.dev/goversion
+module go-simpler.org/goversion
 
 go 1.21
 

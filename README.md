@@ -1,9 +1,9 @@
 # goversion
 
-[![checks](https://github.com/tmzane/goversion/actions/workflows/checks.yml/badge.svg)](https://github.com/tmzane/goversion/actions/workflows/checks.yml)
-[![pkg.go.dev](https://pkg.go.dev/badge/go.tmz.dev/goversion.svg)](https://pkg.go.dev/go.tmz.dev/goversion)
-[![goreportcard](https://goreportcard.com/badge/go.tmz.dev/goversion)](https://goreportcard.com/report/go.tmz.dev/goversion)
-[![codecov](https://codecov.io/gh/tmzane/goversion/branch/main/graph/badge.svg)](https://codecov.io/gh/tmzane/goversion)
+[![checks](https://github.com/go-simpler/goversion/actions/workflows/checks.yml/badge.svg)](https://github.com/go-simpler/goversion/actions/workflows/checks.yml)
+[![pkg.go.dev](https://pkg.go.dev/badge/go-simpler.org/goversion.svg)](https://pkg.go.dev/go-simpler.org/goversion)
+[![goreportcard](https://goreportcard.com/badge/go-simpler.org/goversion)](https://goreportcard.com/report/go-simpler.org/goversion)
+[![codecov](https://codecov.io/gh/go-simpler/goversion/branch/main/graph/badge.svg)](https://codecov.io/gh/go-simpler/goversion)
 
 Easily switch between multiple Go versions
 
@@ -44,13 +44,7 @@ go version go1.18 darwin/arm64
 ### Go
 
 ```shell
-go install go.tmz.dev/goversion@latest
-```
-
-### Brew
-
-```shell
-brew install tmzane/tap/goversion
+go install go-simpler.org/goversion@latest
 ```
 
 ### Manual
@@ -92,8 +86,8 @@ The current version is marked with the `*` symbol.
 ```shell
 > goversion ls
   1.19       (main)
-* 1.18      
-  1.17      
+* 1.18
+  1.17
 ```
 
 The `-a (-all)` flag can be provided to print available versions from `go.dev` as well.
@@ -116,7 +110,7 @@ The full list is quite long, to limit it the `-only=<prefix>` flag can be used.
   1.18.9     (not installed)
   1.18.8     (not installed)
 # ...
-* 1.18      
+* 1.18
 # ...
   1.18beta2  (not installed)
   1.18beta1  (not installed)
@@ -145,4 +139,4 @@ Removed 1.18
 ```
 
 [1]: https://go.dev/doc/manage-install
-[2]: https://github.com/tmzane/goversion/releases
+[2]: https://github.com/go-simpler/goversion/releases
