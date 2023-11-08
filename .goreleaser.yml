@@ -4,7 +4,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{ .Version }}
+      - -s -w -X main.version={{.Version}}
     targets:
       - darwin_amd64
       - darwin_arm64
@@ -15,12 +15,3 @@ archives:
   - format_overrides:
       - goos: windows
         format: zip
-
-brews:
-  - tap:
-      owner: tmzane
-      name: homebrew-tap
-      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
-    homepage: https://github.com/tmzane/goversion
-    description: Easily switch between multiple Go versions
-    license: MPL-2.0
