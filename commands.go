@@ -6,13 +6,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	goversion "go/version"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -39,8 +39,9 @@ var (
 	}
 )
 
-//nolint:gocritic // regexpSimplify: [0-9] reads better here than \d
-var versionRE = regexp.MustCompile(`^(1(\.[1-9][0-9]*)?(\.[1-9][0-9]*)?((rc|beta)[1-9]+)?|tip)$`)
+func isValid(version string) bool {
+	return goversion.IsValid("go"+version) || version == "tip"
+}
 
 // use switches the current Go version to the one specified.
 // If it's not installed, use will install it and download its SDK first.
@@ -59,7 +60,7 @@ func use(ctx context.Context, args []string) error {
 		version = local.main
 	}
 
-	if !versionRE.MatchString(version) {
+	if !isValid(version) {
 		return fmt.Errorf("malformed version %q", version)
 	}
 
@@ -152,11 +153,11 @@ func list(ctx context.Context, args []string) error {
 		var extra string
 		switch {
 		case version == local.main:
-			extra = " (main)"
+			extra = "\t(main)"
 		case !local.contains(version):
-			extra = " (not installed)"
+			extra = "\t(not installed)"
 		case !downloaded(version):
-			extra = " (missing SDK)"
+			extra = "\t(missing SDK)"
 		}
 
 		prefix := " "
@@ -164,7 +165,7 @@ func list(ctx context.Context, args []string) error {
 			prefix = "*"
 		}
 
-		fmt.Fprintf(output, "%s %-10s%s\n", prefix, version, extra)
+		fmt.Fprintf(output, "%s %s%s\n", prefix, version, extra)
 	}
 
 	return nil
@@ -187,7 +188,7 @@ func remove(ctx context.Context, args []string) error {
 		version = local.main
 	}
 
-	if !versionRE.MatchString(version) {
+	if !isValid(version) {
 		return fmt.Errorf("malformed version %q", version)
 	}
 
@@ -289,7 +290,7 @@ func localVersions(ctx context.Context) (*local, error) {
 			continue
 		}
 		version := strings.TrimPrefix(entry.Name(), "go")
-		if versionRE.MatchString(version) {
+		if isValid(version) {
 			list = append(list, version)
 		}
 	}
