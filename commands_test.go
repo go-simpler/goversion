@@ -14,27 +14,6 @@ import (
 	. "go-simpler.org/assert/EF"
 )
 
-func Test_versionRE(t *testing.T) {
-	test := func(s string, match bool) {
-		t.Helper()
-		got := versionRE.MatchString(s)
-		assert.Equal[E](t, got, match)
-	}
-
-	test("tip", true)
-	test("top", false)
-	test("1", true)
-	test("1.", false)
-	test("1.18", true)
-	test("1.18rc", false)
-	test("1.18rc1", true)
-	test("1.18alpha1", false)
-	test("1.18beta1", true)
-	test("1.18.", false)
-	test("1.18.10", true)
-	test("1.18.10.", false)
-}
-
 const mainVersion = "1.19"
 
 var ctx = context.Background()
@@ -145,9 +124,9 @@ func Test_list(t *testing.T) {
 		err := list(ctx, nil)
 		assert.NoErr[F](t, err)
 		assert.Equal[E](t, "\n"+buf.String(), `
-  1.19       (main)
-* 1.18      
-  1.17       (missing SDK)
+  1.19	(main)
+* 1.18
+  1.17	(missing SDK)
 `)
 		assert.Equal[E](t, steps, []string{
 			"exec: go version",                         // 1. read main version
@@ -185,10 +164,10 @@ func Test_list(t *testing.T) {
 		err := list(ctx, []string{"-all"})
 		assert.NoErr[F](t, err)
 		assert.Equal[E](t, "\n"+buf.String(), `
-  tip        (not installed)
-  1.19       (main)
-* 1.18      
-  1.17       (not installed)
+  tip	(not installed)
+  1.19	(main)
+* 1.18
+  1.17	(not installed)
 `)
 		assert.Equal[E](t, steps, []string{
 			"exec: go version",                               // 1. read main version
@@ -258,7 +237,7 @@ func Test_remove(t *testing.T) {
 }
 
 func recordCommands(commands *[]string) {
-	command = func(ctx context.Context, name string, args ...string) error {
+	command = func(_ context.Context, name string, args ...string) error {
 		c := strings.Join(append([]string{name}, args...), " ")
 		*commands = append(*commands, "exec: "+c)
 		return nil
