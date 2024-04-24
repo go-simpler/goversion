@@ -10,6 +10,8 @@ on:
 jobs:
   test:
     uses: go-simpler/.github/.github/workflows/test.yml@main
+    with:
+      go-versions: '[ "stable" ]' # go/version package available since 1.22
   lint:
     uses: go-simpler/.github/.github/workflows/lint.yml@main
   vuln:
