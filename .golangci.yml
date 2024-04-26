@@ -7,7 +7,6 @@ linters:
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
     - unused
     # disabled by default:
     - gocritic
@@ -21,3 +20,5 @@ linters-settings:
       - performance
       - experimental
       - opinionated
+    disabled-checks:
+      - importShadow

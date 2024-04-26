@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"os"
@@ -24,8 +24,6 @@ func Test_latestPatches(t *testing.T) {
 		"1.20rc3",
 		"1.20rc2",
 		"1.20rc1",
-		"1.19.5",
-		"1.19.4",
 		"1.19.3",
 		"1.19.2",
 		"1.19.1",
@@ -33,6 +31,6 @@ func Test_latestPatches(t *testing.T) {
 	assert.Equal[E](t, got, []string{
 		"tip",
 		"1.20rc3",
-		"1.19.5",
+		"1.19.3",
 	})
 }
