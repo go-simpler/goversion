@@ -1,25 +1,26 @@
-package main
+package app
 
 import (
+	goversion "go/version"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 )
 
-// cutFromPath cuts the given value from a $PATH-like string.
-func cutFromPath(path, value string) string {
-	var list []string
-	for _, v := range strings.Split(path, string(os.PathListSeparator)) {
-		if v != value {
-			list = append(list, v)
-		}
-	}
-	return strings.Join(list, string(os.PathListSeparator))
+func isValid(version string) bool {
+	return goversion.IsValid("go"+version) || version == "tip"
 }
 
-// latestPatches filters the given version list (must be sorted),
-// returning only the latest patch for each minor version.
+func cutFromPath(path, value string) string {
+	oldPath := strings.Split(path, string(os.PathListSeparator))
+	newPath := slices.DeleteFunc(oldPath, func(v string) bool {
+		return v == value
+	})
+	return strings.Join(newPath, string(os.PathListSeparator))
+}
+
 func latestPatches(versions []string) []string {
 	sorted := sort.SliceIsSorted(versions, func(i, j int) bool {
 		return versionLess(versions[i], versions[j])
@@ -28,7 +29,7 @@ func latestPatches(versions []string) []string {
 		panic("version list is not sorted")
 	}
 
-	if l := len(versions); l == 0 || l == 1 {
+	if len(versions) <= 1 {
 		return versions
 	}
 
@@ -50,10 +51,10 @@ func latestPatches(versions []string) []string {
 // https://github.com/golang/website/blob/master/internal/dl/dl.go
 
 func versionLess(a, b string) bool {
-	// put gotip at the top of the list.
 	if a == "tip" {
 		return true
-	} else if b == "tip" {
+	}
+	if b == "tip" {
 		return false
 	}
 	maja, mina, ta := parseVersion(a)

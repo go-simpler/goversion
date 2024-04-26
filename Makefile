@@ -10,6 +10,9 @@ test/cover:
 	go test -race -shuffle=on -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out
 
+build:
+	go build -o=goversion
+
 lint:
 	golangci-lint run
 
