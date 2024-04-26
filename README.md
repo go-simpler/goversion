@@ -29,6 +29,18 @@ Switched to 1.18
 go version go1.18 darwin/arm64
 ```
 
+> [!note]
+> Starting with Go 1.21, the `go` tool is able to [download new SDKs automatically][2].
+> It's possible to force it to use a specific Go version:
+>
+> ```go
+> GOTOOLCHAIN=go1.18 go version
+> ```
+>
+> If you just need to quickly test something with a different Go version,
+> it is recommended to use this approach, as it does not require installing additional binaries.
+> `goversion` is still useful for explicit version management.
+
 ## 🚀 Features
 
 * Install and switch between multiple Go versions
@@ -46,7 +58,7 @@ Then install `goversion` with Go...
 go install go-simpler.org/goversion@latest
 ```
 
-...or download a prebuilt binary from the [Releases][2] page.
+...or download a prebuilt binary from the [Releases][3] page.
 
 ## 📋 Usage
 
@@ -59,7 +71,7 @@ Switches the current Go version (will be installed if not exists).
 Switched to 1.18
 ```
 
-The special [gotip][3] version can be used just like any other.
+The special [gotip][4] version can be used just like any other.
 
 ```shell
 > goversion use tip
@@ -152,5 +164,6 @@ Flags:
 ```
 
 [1]: https://go.dev/doc/manage-install
-[2]: https://github.com/go-simpler/goversion/releases
-[3]: https://pkg.go.dev/golang.org/dl/gotip
+[2]: https://go.dev/doc/toolchain
+[3]: https://github.com/go-simpler/goversion/releases
+[4]: https://pkg.go.dev/golang.org/dl/gotip
