@@ -59,7 +59,7 @@ Switches the current Go version (will be installed if not exists).
 Switched to 1.18
 ```
 
-The special [tip][3] version can be used just like any other.
+The special [gotip][3] version can be used just like any other.
 
 ```shell
 > goversion use tip
