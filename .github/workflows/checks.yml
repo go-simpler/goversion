@@ -36,6 +36,6 @@ jobs:
       - name: Run functional tests
         shell: sh
         run: |
-          echo $PATH
+          echo $PATH # $GOBIN is already added to $PATH by setup-go.
           chmod +x test.sh
           ./test.sh ${{ matrix.os }}
