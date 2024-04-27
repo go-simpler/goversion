@@ -3,6 +3,7 @@
 set -euf
 
 os="$1"
+exe=""
 if [ "$os" = "windows-latest" ]; then
     exe=".exe"
 fi
