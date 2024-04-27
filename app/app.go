@@ -59,7 +59,7 @@ func (a *App) Use(ctx context.Context, version string) error {
 		initial = true
 		fmt.Fprintf(a.Output, "%s is not installed. Looking for it on go.dev ...\n", version)
 		url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
-		if err := a.RunCmd(ctx, "go"+exe(), "install", url); err != nil {
+		if err := a.RunCmd(ctx, "go", "install", url); err != nil {
 			return err
 		}
 	}
@@ -71,7 +71,7 @@ func (a *App) Use(ctx context.Context, version string) error {
 			// this message doesn't make sense during initial installation.
 			fmt.Fprintf(a.Output, "%s SDK is missing. Starting download ...\n", version)
 		}
-		if err := a.RunCmd(ctx, "go"+version+exe(), "download"); err != nil {
+		if err := a.RunCmd(ctx, "go"+version, "download"); err != nil {
 			return err
 		}
 	}
@@ -200,7 +200,7 @@ func (a *App) localVersions(ctx context.Context) (*local, error) {
 	tempPath := cutFromPath(currPath, os.Getenv("GOBIN"))
 	os.Setenv("PATH", tempPath)
 
-	output, err := a.RunCmdOut(ctx, "go"+exe(), "version")
+	output, err := a.RunCmdOut(ctx, "go", "version")
 	if err != nil {
 		return nil, err
 	}
