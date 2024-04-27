@@ -47,7 +47,7 @@ func (a *App) Use(ctx context.Context, version string) error {
 		fmt.Fprintf(a.Output, "%s is already in use\n", version)
 		return nil
 	case local.main:
-		if err := a.GoBin.Remove("go"); err != nil {
+		if err := a.GoBin.Remove("go" + exe()); err != nil {
 			return err
 		}
 		fmt.Fprintf(a.Output, "Switched to %s (main)\n", version)
@@ -76,10 +76,10 @@ func (a *App) Use(ctx context.Context, version string) error {
 		}
 	}
 
-	if err := a.GoBin.Remove("go"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := a.GoBin.Remove("go" + exe()); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	if err := a.GoBin.Symlink("go"+version, "go"); err != nil {
+	if err := a.GoBin.Symlink("go"+version+exe(), "go"+exe()); err != nil {
 		return err
 	}
 
@@ -158,13 +158,13 @@ func (a *App) Remove(ctx context.Context, version string) error {
 	case local.main:
 		return fmt.Errorf("unable to remove %s (main)", version)
 	case local.current:
-		if err := a.GoBin.Remove("go"); err != nil {
+		if err := a.GoBin.Remove("go" + exe()); err != nil {
 			return err
 		}
 		fmt.Fprintf(a.Output, "Switched to %s (main)\n", local.main)
 	}
 
-	if err := a.GoBin.Remove("go" + version); err != nil {
+	if err := a.GoBin.Remove("go" + version + exe()); err != nil {
 		return err
 	}
 	if err := a.SDK.RemoveAll("go" + version); err != nil {
@@ -211,11 +211,12 @@ func (a *App) localVersions(ctx context.Context) (*local, error) {
 	}
 
 	var current string
-	switch link, err := a.GoBin.Readlink("go"); {
+	switch link, err := a.GoBin.Readlink("go" + exe()); {
 	case errors.Is(err, fs.ErrNotExist):
 		current = main
 	case err == nil:
 		current = strings.TrimPrefix(filepath.Base(link), "go")
+		current = strings.TrimSuffix(current, ".exe")
 	default:
 		return nil, err
 	}
@@ -231,6 +232,7 @@ func (a *App) localVersions(ctx context.Context) (*local, error) {
 			continue
 		}
 		version := strings.TrimPrefix(entry.Name(), "go")
+		version = strings.TrimSuffix(version, ".exe")
 		if isValid(version) {
 			list = append(list, version)
 		}

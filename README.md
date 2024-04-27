@@ -46,6 +46,8 @@ go version go1.18 darwin/arm64
 * Install and switch between multiple Go versions
 * List installed Go versions (optionally, all available versions)
 * Remove installed Go versions with a single command
+* Depends only on Go itself
+* Cross-platform: tested on Linux, Windows, macOS
 
 ## 📦 Install
 
