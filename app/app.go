@@ -47,7 +47,7 @@ func (a *App) Use(ctx context.Context, version string) error {
 		fmt.Fprintf(a.Output, "%s is already in use\n", version)
 		return nil
 	case local.main:
-		if err := a.GoBin.Remove("go"); err != nil {
+		if err := a.GoBin.Remove("go" + exe()); err != nil {
 			return err
 		}
 		fmt.Fprintf(a.Output, "Switched to %s (main)\n", version)
@@ -59,7 +59,7 @@ func (a *App) Use(ctx context.Context, version string) error {
 		initial = true
 		fmt.Fprintf(a.Output, "%s is not installed. Looking for it on go.dev ...\n", version)
 		url := fmt.Sprintf("golang.org/dl/go%s@latest", version)
-		if err := a.RunCmd(ctx, "go", "install", url); err != nil {
+		if err := a.RunCmd(ctx, "go"+exe(), "install", url); err != nil {
 			return err
 		}
 	}
@@ -71,15 +71,15 @@ func (a *App) Use(ctx context.Context, version string) error {
 			// this message doesn't make sense during initial installation.
 			fmt.Fprintf(a.Output, "%s SDK is missing. Starting download ...\n", version)
 		}
-		if err := a.RunCmd(ctx, "go"+version, "download"); err != nil {
+		if err := a.RunCmd(ctx, "go"+version+exe(), "download"); err != nil {
 			return err
 		}
 	}
 
-	if err := a.GoBin.Remove("go"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := a.GoBin.Remove("go" + exe()); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	if err := a.GoBin.Symlink("go"+version, "go"); err != nil {
+	if err := a.GoBin.Symlink("go"+version+exe(), "go"+exe()); err != nil {
 		return err
 	}
 
@@ -158,13 +158,13 @@ func (a *App) Remove(ctx context.Context, version string) error {
 	case local.main:
 		return fmt.Errorf("unable to remove %s (main)", version)
 	case local.current:
-		if err := a.GoBin.Remove("go"); err != nil {
+		if err := a.GoBin.Remove("go" + exe()); err != nil {
 			return err
 		}
 		fmt.Fprintf(a.Output, "Switched to %s (main)\n", local.main)
 	}
 
-	if err := a.GoBin.Remove("go" + version); err != nil {
+	if err := a.GoBin.Remove("go" + version + exe()); err != nil {
 		return err
 	}
 	if err := a.SDK.RemoveAll("go" + version); err != nil {
@@ -200,7 +200,7 @@ func (a *App) localVersions(ctx context.Context) (*local, error) {
 	tempPath := cutFromPath(currPath, os.Getenv("GOBIN"))
 	os.Setenv("PATH", tempPath)
 
-	output, err := a.RunCmdOut(ctx, "go", "version")
+	output, err := a.RunCmdOut(ctx, "go"+exe(), "version")
 	if err != nil {
 		return nil, err
 	}
@@ -211,11 +211,11 @@ func (a *App) localVersions(ctx context.Context) (*local, error) {
 	}
 
 	var current string
-	switch link, err := a.GoBin.Readlink("go"); {
+	switch link, err := a.GoBin.Readlink("go" + exe()); {
 	case errors.Is(err, fs.ErrNotExist):
 		current = main
 	case err == nil:
-		current = strings.TrimPrefix(filepath.Base(link), "go")
+		current = strings.TrimPrefix(filepath.Base(link), "go") // TODO: windows: trim .exe?
 	default:
 		return nil, err
 	}
@@ -230,6 +230,7 @@ func (a *App) localVersions(ctx context.Context) (*local, error) {
 		if entry.IsDir() {
 			continue
 		}
+		// TODO: windows: trim .exe?
 		version := strings.TrimPrefix(entry.Name(), "go")
 		if isValid(version) {
 			list = append(list, version)

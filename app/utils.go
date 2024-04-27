@@ -3,6 +3,7 @@ package app
 import (
 	goversion "go/version"
 	"os"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -11,6 +12,13 @@ import (
 
 func isValid(version string) bool {
 	return goversion.IsValid("go"+version) || version == "tip"
+}
+
+func exe() string {
+	if runtime.GOOS == "windows" {
+		return ".exe"
+	}
+	return ""
 }
 
 func cutFromPath(path, value string) string {
