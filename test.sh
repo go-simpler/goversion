@@ -10,4 +10,5 @@ fi
 
 go build -o goversion"$exe"
 ./goversion"$exe" use 1.18
+which -a go
 go version
