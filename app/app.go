@@ -215,7 +215,8 @@ func (a *App) localVersions(ctx context.Context) (*local, error) {
 	case errors.Is(err, fs.ErrNotExist):
 		current = main
 	case err == nil:
-		current = strings.TrimPrefix(filepath.Base(link), "go") // TODO: windows: trim .exe?
+		current = strings.TrimPrefix(filepath.Base(link), "go")
+		current = strings.TrimSuffix(current, ".exe")
 	default:
 		return nil, err
 	}
@@ -230,8 +231,8 @@ func (a *App) localVersions(ctx context.Context) (*local, error) {
 		if entry.IsDir() {
 			continue
 		}
-		// TODO: windows: trim .exe?
 		version := strings.TrimPrefix(entry.Name(), "go")
+		version = strings.TrimSuffix(version, ".exe")
 		if isValid(version) {
 			list = append(list, version)
 		}
