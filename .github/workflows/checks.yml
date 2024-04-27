@@ -36,3 +36,6 @@ jobs:
       - name: Run functional tests
         run: |
           echo $PATH
+          make build
+          ./goversion use 1.18
+          go version
