@@ -81,7 +81,7 @@ func versionLess(a, b string) bool {
 	return maja >= majb
 }
 
-func parseVersion(v string) (maj, min int, tail string) {
+func parseVersion(v string) (major, minor int, tail string) {
 	if i := strings.Index(v, "beta"); i > 0 {
 		tail = v[i:]
 		v = v[:i]
@@ -91,10 +91,10 @@ func parseVersion(v string) (maj, min int, tail string) {
 		v = v[:i]
 	}
 	p := strings.Split(strings.TrimPrefix(v, "1."), ".")
-	maj, _ = strconv.Atoi(p[0])
+	major, _ = strconv.Atoi(p[0])
 	if len(p) < 2 {
 		return
 	}
-	min, _ = strconv.Atoi(p[1])
+	minor, _ = strconv.Atoi(p[1])
 	return
 }
